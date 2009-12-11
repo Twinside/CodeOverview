@@ -1,0 +1,16 @@
+Name:       CodeOverview
+Version:    1.0
+Synopsis:   Create nice overview of code
+Build-Type: Simple
+Cabal-Version: >= 1.2
+Description: Tool for future integration in IDE
+Author: Vincent Berthoux
+Maintainer: Vincent Berthoux
+
+Executable codeoverview
+    Main-Is: codeOverviewMain.hs
+    ghc-options:-Wall
+    Build-Depends: base >= 2.0
+                 , zlib >= 0.5.2
+                 , bytestring >= 0.9
+                 , array >= 0.2
