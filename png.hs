@@ -3,7 +3,11 @@ A small library for creating monochrome PNG files.
 This file is placed into the public domain.
 Dependencies: Zlib.
 -}
-module Png( png2bit, pngGrayscale, png24bit ) where
+module Png( png2bit
+          , pngGrayscale
+          , savePng24Bit, png24bit 
+          , savePng24BitAlpha, png24bitAlpha ) where
+
 import Data.Array
 import Data.Bits
 import Data.List
@@ -115,6 +119,10 @@ pngGrayscale dat = unpack $ B.concat $ hdr : concat [ihdr, imgdat, iend]
 --------------------------------------------------
 ----            24 bit png
 --------------------------------------------------
+savePng24Bit :: String -> [[(Int,Int,Int)]] -> IO ()
+savePng24Bit filename pixels =
+    B.writeFile filename $ png24bit pixels
+
 png24bit :: [[(Int,Int,Int)]] -> B.ByteString
 png24bit dat = B.concat $ hdr : concat [ihdr, imgdat ,iend]
      where height = fromIntegral $ length dat
@@ -138,6 +146,10 @@ png24bit dat = B.concat $ hdr : concat [ihdr, imgdat ,iend]
 --------------------------------------------------
 ----            24 bit & Alpha
 --------------------------------------------------
+savePng24BitAlpha :: FilePath -> [[(Int,Int,Int,Int)]] -> IO ()
+savePng24BitAlpha filename pixels =
+    B.writeFile filename $ png24bitAlpha pixels
+
 png24bitAlpha :: [[(Int,Int,Int,Int)]] -> B.ByteString
 png24bitAlpha dat = B.concat $ hdr : concat [ihdr, imgdat ,iend]
      where height = fromIntegral $ length dat

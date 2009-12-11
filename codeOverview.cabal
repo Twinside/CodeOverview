@@ -14,3 +14,4 @@ Executable codeoverview
                  , zlib >= 0.5.2
                  , bytestring >= 0.9
                  , array >= 0.2
+                 , ppm
