@@ -12,9 +12,10 @@ main = do
                         haskellCodeDef
                         defaultColorDef 
                         $ lines file
-        rgbPixels = [map (\(a,b,c,d) -> (a,b,c)) line | line <- pixelList]
+        finalpixelList = addOverMask defaultColorDef (5, 13) (30, 40) pixelList
+        rgbPixels = [map (\(a,b,c,_) -> (a,b,c)) line | line <- finalpixelList]
     putStrLn "======================================="
-    savePng24BitAlpha (args !! 0 ++ ".rgba.png") pixelList
+    savePng24BitAlpha (args !! 0 ++ ".rgba.png") finalpixelList
     savePng24Bit (args !! 0 ++ ".rgb.png") rgbPixels
     writeFile (args !! 0 ++ ".ppm") $ ppm rgbPixels
     
