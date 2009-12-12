@@ -1,9 +1,27 @@
-module CodeOverview{-( CodeDef
+module CodeOverview( CodeDef
                    , ColorDef
                    , ViewColor
-                   )-} where
+
+                   -- Defined languages
+                   , cCodeDef
+                   , haskellCodeDef
+                   , ocamlCodeDef
+                   , rubyCodeDef
+                   , shellLikeCodeDef 
+                   , htmlCodeDef
+                   , emptyCodeDef 
+
+                   -- Defined colorset
+                   , defaultColorDef
+
+                   -- Manipulation function
+                   , createCodeOverview 
+                   , addOverMask
+                   , doubleSize
+                   ) where
 
 import Data.Char
+import Data.Maybe( fromJust, isJust )
 import Data.List( foldl', isPrefixOf )
 --import System.IO.Unsafe
 
@@ -12,20 +30,18 @@ newtype NextParse = NextParse ([ViewColor], Parser)
 type ParseResult = Either NextParse (Maybe ([ViewColor], String))
 type Parser = String -> ParseResult
 
-instance Show NextParse where
-    show (NextParse (v, _)) = "NextParse (" ++ show v ++ ", _)"
-
 data    CodeDef = CodeDef
     { lineComm         :: Maybe String
     , multiLineCommBeg :: Maybe String
     , multiLineCommEnd :: Maybe String
     , identParser :: Char -> Int -> Bool
-    --, strParser :: Char -> Char -> Bool
+    , strParser :: Maybe (ColorDef -> Parser)
     , tabSpace :: Int
     }
 
 data    ColorDef = ColorDef
     { commentColor   :: ViewColor
+    , stringColor    :: ViewColor
     , normalColor    :: ViewColor
     , highlightColor :: ViewColor
     , majColor       :: ViewColor
@@ -37,19 +53,49 @@ defaultColorDef :: ColorDef
 defaultColorDef = ColorDef
     { commentColor   = (100,155,100,255)
     , normalColor    = (128,128,128,255)
+    , stringColor    = (100,100,155,255)
     , highlightColor = (200,200,100,255)
     , majColor       = (  0,  0,  0,255)
     , emptyColor     = (255,255,255,  0)
     , viewColor      = (200,200,255,255)
     }
 
-cCodeDef, haskellCodeDef, ocamlCodeDef :: CodeDef
+cCodeDef, haskellCodeDef, ocamlCodeDef,
+             rubyCodeDef, shellLikeCodeDef,
+             htmlCodeDef, emptyCodeDef :: CodeDef
+
+emptyCodeDef = CodeDef
+            { lineComm = Nothing
+            , multiLineCommBeg = Nothing
+            , multiLineCommEnd = Nothing
+            , tabSpace = 4
+            , identParser = basicIdent
+            , strParser = Nothing
+            }
+
+htmlCodeDef = emptyCodeDef
+            { multiLineCommBeg = Just "<!--"
+            , multiLineCommEnd = Just "-->"
+            }
+
+shellLikeCodeDef = emptyCodeDef
+            { lineComm = Just "#"
+            , tabSpace = 4
+            , strParser = Just $ stringParser False shellLikeCodeDef
+            }
+
+rubyCodeDef = shellLikeCodeDef
+    { multiLineCommBeg = Just "=begin"
+    , multiLineCommEnd = Just "=end"
+    }
+
 cCodeDef = CodeDef
            { lineComm = Just "//"
            , multiLineCommBeg = Just "/*"
            , multiLineCommEnd = Just "*/"
            , tabSpace = 4
            , identParser = identWithPrime
+           , strParser = Just $ stringParser False cCodeDef
            }
 
 haskellCodeDef = CodeDef
@@ -58,6 +104,7 @@ haskellCodeDef = CodeDef
                  , multiLineCommEnd = Just "-}"
                  , tabSpace = 4
                  , identParser = identWithPrime
+                 , strParser = Just $ stringParser False haskellCodeDef
                  }
 
 ocamlCodeDef = CodeDef
@@ -66,6 +113,7 @@ ocamlCodeDef = CodeDef
                , multiLineCommEnd = Just "*)"
                , tabSpace = 4
                , identParser = basicIdent
+               , strParser = Just $ stringParser False ocamlCodeDef
                }
 
 identWithPrime :: Char -> Int -> Bool
@@ -75,6 +123,23 @@ identWithPrime c _ = isAlphaNum c || c == '\''
 basicIdent :: Char -> Int -> Bool
 basicIdent c 0 = isAlpha c
 basicIdent c _ = isAlphaNum c
+
+stringParser :: Bool -> CodeDef -> ColorDef -> Parser
+stringParser allowBreak codeDef colorDef ('"':stringSuite) =
+  stringer (color:) stringSuite
+    where color = stringColor colorDef
+          empty = emptyColor colorDef
+          tabSize = tabSpace codeDef
+          stringer acc [] = if allowBreak
+                                then Left $ NextParse (acc [], stringer id)
+                                else Right Nothing
+          stringer acc ('\\':'"':xs) =
+              stringer (acc . ([color, color]++)) xs
+          stringer acc (' ':xs) = stringer (acc . (empty:)) xs
+          stringer acc ('\t':xs) = stringer (acc . (replicate tabSize empty ++)) xs
+          stringer acc ('"':xs) = Right $ Just (acc [color], xs)
+          stringer acc (_:xs) = stringer (acc . (color:)) xs
+stringParser _ _ _ _ = Right Nothing
 
 monoLineComment :: CodeDef -> ColorDef -> Parser
 monoLineComment cdef colors toMatch 
@@ -144,9 +209,10 @@ whenAdd yesno a = if yesno then (a:) else id
 
 parserList :: [String] -> CodeDef -> ColorDef -> [Parser]    
 parserList highlightDef codeDef colorDef =
-      whenAdd (lineComm codeDef /= Nothing) (monoLineComment codeDef colorDef)
+      whenAdd (isJust $ lineComm codeDef) (monoLineComment codeDef colorDef)
     . whenAdd (multiLineCommBeg codeDef /= Nothing
               && multiLineCommEnd codeDef /= Nothing) (multiLineComment codeDef colorDef)
+    . whenAdd (isJust $ strParser codeDef) (fromJust (strParser codeDef) colorDef)
     $ [ globalParse highlightDef codeDef colorDef
       , charEater codeDef colorDef
       ]
@@ -159,6 +225,10 @@ normalizePixelList colorDef lst = map normalize $ zip lst sizes
           padding = maxi `mod` 4
           normalize (line, size) =
               line ++ replicate (maxi - size + padding) color
+
+doubleSize :: [[ViewColor]] -> [[ViewColor]]
+doubleSize = concatMap (\a -> [double a, double a])
+    where double = concatMap $ \a -> [a,a]
 
 addOverMask :: ColorDef -> (Int, Int) -> (Int, Int) -> [[ViewColor]]
             -> [[ViewColor]]
@@ -179,12 +249,13 @@ addOverMask colorDef (x,y) (width, height) pixels = prelude ++ map lineColoratio
               , (a * av) `quot` 256
               )
 
-createCodeOverview :: CodeDef -> ColorDef -> [String] -> [[ViewColor]]
-createCodeOverview codeDef colorDef = normalizePixelList colorDef
-                                    . (\f -> f [])
-                                    . fst
-                                    . foldl' parse (id, Nothing)
-    where usedParser = parserList ["lineEval"] codeDef colorDef
+createCodeOverview :: CodeDef -> ColorDef -> [String] -> [String] -> [[ViewColor]]
+createCodeOverview codeDef colorDef highlighted =
+        normalizePixelList colorDef
+      . (\f -> f [])
+      . fst
+      . foldl' parse (id, Nothing)
+    where usedParser = parserList highlighted codeDef colorDef
           (firstParser : tailParser) = usedParser
 
           parse (prevLines, Just parser) line =  (prevLines . (line':), parser')

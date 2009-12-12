@@ -1,2 +1,6 @@
 dist
-
+*.png
+*.exe
+*.ncb
+*.suo
+*.user
