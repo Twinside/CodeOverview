@@ -3,6 +3,8 @@ Microsoft Visual Studio Solution File, Format Version 10.00
 # Visual Studio 2008
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WpfOverview", "WpfOverview\WpfOverview.csproj", "{90F9D767-20BD-4121-863D-0AC04FB0C82D}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WinFormOverview", "WinFormOverview\WinFormOverview.csproj", "{1C165A83-8474-4EE0-A412-2E1FB0AA53AF}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -19,6 +21,12 @@ Global
 		{90F9D767-20BD-4121-863D-0AC04FB0C82D}.Release|Any CPU.Build.0 = Release|Any CPU
 		{90F9D767-20BD-4121-863D-0AC04FB0C82D}.Release|x86.ActiveCfg = Release|x86
 		{90F9D767-20BD-4121-863D-0AC04FB0C82D}.Release|x86.Build.0 = Release|x86
+		{1C165A83-8474-4EE0-A412-2E1FB0AA53AF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1C165A83-8474-4EE0-A412-2E1FB0AA53AF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1C165A83-8474-4EE0-A412-2E1FB0AA53AF}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{1C165A83-8474-4EE0-A412-2E1FB0AA53AF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1C165A83-8474-4EE0-A412-2E1FB0AA53AF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1C165A83-8474-4EE0-A412-2E1FB0AA53AF}.Release|x86.ActiveCfg = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

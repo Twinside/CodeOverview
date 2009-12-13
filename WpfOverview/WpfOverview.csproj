@@ -131,4 +131,7 @@
   <Target Name="AfterBuild">
   </Target>
   -->
+  <PropertyGroup>
+    <PostBuildEvent>copy $(TargetPath) $(SolutionDir)</PostBuildEvent>
+  </PropertyGroup>
 </Project>

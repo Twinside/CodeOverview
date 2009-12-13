@@ -32,7 +32,8 @@ namespace WpfOverview
         RECT oldPos;
         RECT followedWindowSize;
         int lastWindowMove;
-        IntPtr thisHandle; 
+        IntPtr thisHandle;
+        IntPtr windowHandle;
 
         const int maxWaitDelay = 250;
         TimeSpan fastTimerInterval = TimeSpan.FromMilliseconds(10);
@@ -52,12 +53,19 @@ namespace WpfOverview
             oldPos = new RECT();
         }
 
+        const UInt32 WM_KEYDOWN = 0x0100;
+        const UInt32 WM_KEYUP = 0x0101;
+
         [DllImport("user32.dll")]
         static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int X, int Y, int cx, int cy, uint uFlags);
 
         [DllImport("user32.dll", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
         static extern bool GetWindowRect(IntPtr hWnd, ref RECT lpRect);
+
+        [return: MarshalAs(UnmanagedType.Bool)]
+        [DllImport("user32.dll", SetLastError = true)]
+        static extern bool PostMessage(IntPtr hWnd, UInt32 Msg, Int32 wParam, Int32 lParam);
 
         [StructLayout(LayoutKind.Sequential)]
         private struct RECT
@@ -68,6 +76,16 @@ namespace WpfOverview
             public int Bottom;
         }
 
+        private void SendKeyToFollowedProcess( Key  k )
+        {
+            int vk = KeyInterop.VirtualKeyFromKey(k);
+            // Ugly in the general case, but vim is built on windows
+            // to handle this kind of things. As it's so simpler than
+            // other techniques, use it.
+            PostMessage( windowHandle, WM_KEYDOWN, vk, 0 );
+            PostMessage( windowHandle, WM_KEYUP, vk, 0 );
+        }
+
         protected override void OnSourceInitialized(EventArgs e)
         {
             HwndSource hwndSource = PresentationSource.FromVisual(this) as HwndSource;
@@ -75,16 +93,26 @@ namespace WpfOverview
             if (hwndSource != null)
                 thisHandle = hwndSource.Handle;
 
+            try
+            {
+                string[] args = System.Environment.GetCommandLineArgs();
+                FollowedPid = int.Parse( args[args.Length - 1] );
+            }
+            // Handling int parsing
+            // if we can't find a valid PID, we must shut down, there's nothing
+            // we can do.
+            catch (OverflowException) { Application.Current.Shutdown(); }
+            catch (FormatException)   { Application.Current.Shutdown(); }
+
             string watchedFile =
                 System.Environment.GetEnvironmentVariable("TEMP")
-                + "\\overviewFile.txt";
+                + "\\overviewFile" + FollowedPid.ToString() + ".txt";
 
             // create an empty file to sure it exists before anything
             using (var file = File.Create(watchedFile)) {}
 
             watcher = new FileWatcher(watchedFile
                                      , new FileWatcher.FileChangedHandler(onFileChange));
-            FollowedPid = -1;
         }
 
 
@@ -95,7 +123,7 @@ namespace WpfOverview
                 followedProcess.Refresh();
 
                 // get the followed window handle
-                IntPtr windowHandle = followedProcess.MainWindowHandle;
+                windowHandle = followedProcess.MainWindowHandle;
 
                 GetWindowRect(windowHandle, ref followedWindowSize);
 
@@ -138,40 +166,29 @@ namespace WpfOverview
             catch (PlatformNotSupportedException)
             {   /* I'm not sure about this one, but I'm
                  * sure we can't track it's window */
-                FollowedPid = -1;
+                Application.Current.Shutdown();
             }
             catch (NotSupportedException)
             {   /* Process may have no window */
-                FollowedPid = -1;
+                Application.Current.Shutdown();
             }
             catch (InvalidOperationException)
             {   /* Process may be terminated */
-                FollowedPid = -1;
+                Application.Current.Shutdown();
             }
         }
 
         private int FollowedPid
         {
-            get { return FollowedPid; }
+            get { return followedPid; }
             set
             {
                 followedPid = value;
 
-                if (followedPid >= 0)
-                {
-                    followedProcess = Process.GetProcessById(followedPid);
-                    FollowPIDWindow(null, null);
-                    if (!windowFollowTimer.IsEnabled)
-                        windowFollowTimer.Start();
-
-                    Visibility = Visibility.Visible;
-                }
-                else
-                {
-                    Visibility = Visibility.Hidden;
-                    if (windowFollowTimer.IsEnabled)
-                        windowFollowTimer.Stop();
-                }
+                followedProcess = Process.GetProcessById(followedPid);
+                FollowPIDWindow(null, null);
+                if (!windowFollowTimer.IsEnabled)
+                    windowFollowTimer.Start();
             }
         }
 
@@ -182,44 +199,55 @@ namespace WpfOverview
             {
                 try
                 {
-                    string[]    info = reader.ReadLine().Split('|');
-                    int newPid = int.Parse( info[0] );
-
                     BitmapImage newOverview = new BitmapImage();
                     newOverview.BeginInit();
                     newOverview.CreateOptions = BitmapCreateOptions.IgnoreImageCache;
                     newOverview.CacheOption = BitmapCacheOption.OnLoad;
-                    newOverview.UriSource = new Uri(info[1]);
+                    newOverview.UriSource = new Uri(reader.ReadLine());
                     newOverview.EndInit();
 
-                    //Width = Math.Max( newOverview.Width, 100 );
-                    //pictureViewer.Height = newOverview.Height;
                     pictureViewer.Source = newOverview;
-
-                    //pictureViewer.UpdateLayout();
-                    //pictureViewer.InvalidateVisual();
-
-                    // if all went well we follow a new process
-                    FollowedPid = newPid;
                 }
                 catch (UriFormatException)
                 {
                     /* Bad image... putting empty image instead */
                     pictureViewer.Source = null;
                 }
-                // Handling int parsing
-                catch (OverflowException)
-                { /* PID > int32, ok error no problem */ FollowedPid = -1; }
-                catch (FormatException)
-                { /* We can safely ignore it */ FollowedPid = -1; }
                 catch (IOException)
                 { /* can happen, not a problem in this case. */ }
                 catch (ArgumentOutOfRangeException)
                 { /* we're searching for a PID and a path, nothing big
                    * Ignore if to big */
-                    FollowedPid = -1;
+                    Application.Current.Shutdown();
                 }
             }
+        }
+
+        Key[] numbers = { Key.NumPad0, Key.NumPad1, Key.NumPad2
+                        , Key.NumPad3, Key.NumPad4, Key.NumPad5
+                        , Key.NumPad6, Key.NumPad6, Key.NumPad7
+                        , Key.NumPad8, Key.NumPad9
+                        };
+        private void updateVimView( Point pos )
+        {
+            string  heightI = ((int)pos.Y + 1).ToString();
+
+            //SendKeyToFollowedProcess(Key.Escape);
+            //SendKeyToFollowedProcess(Key.I);
+            foreach (char c in heightI)
+                SendKeyToFollowedProcess( numbers[(int)c - (int)'0'] );
+
+            SendKeyToFollowedProcess(Key.G);
+            SendKeyToFollowedProcess(Key.G);
+        }
+
+        private void pictureViewer_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+            { updateVimView(e.GetPosition((Image)sender)); }
+
+        private void pictureViewer_MouseMove(object sender, MouseEventArgs e)
+        {
+            if (e.LeftButton == MouseButtonState.Pressed)
+                updateVimView(e.GetPosition((Image)sender));
         }
     }
 }
