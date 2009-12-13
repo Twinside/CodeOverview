@@ -127,8 +127,8 @@ performTransformation option path = do
                         (overHighlighted option)
                         $ lines file
     if overTop option >= 0
-       then return $ addOverMask colorDef (0, overTop option)
-                                          (5000, overHiSize option)
+       then return $ addOverMask colorDef (0, overTop option - 1)
+                                          (5000, overHiSize option - 1)
                                           pixelList
        else return pixelList
 

@@ -9,7 +9,7 @@ Maintainer: Vincent Berthoux
 
 Executable codeoverview
     Main-Is: codeOverviewMain.hs
-    ghc-options:-Wall
+    ghc-options:-O3 -Wall
     Build-Depends: base >= 2.0
                  , zlib >= 0.5.2
                  , bytestring >= 0.9
