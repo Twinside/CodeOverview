@@ -15,6 +15,7 @@ using System.Windows.Shapes;
 using System.Windows.Threading;
 using System.Runtime.InteropServices;
 using System.Diagnostics;
+using System.Windows.Interop;
 
 namespace WpfOverview
 {
@@ -28,24 +29,36 @@ namespace WpfOverview
         int followedPid;
         Process followedProcess;
         DispatcherTimer windowFollowTimer;
+        RECT oldPos;
         RECT followedWindowSize;
+        int lastWindowMove;
+        IntPtr thisHandle; 
+
+        const int maxWaitDelay = 250;
+        TimeSpan fastTimerInterval = TimeSpan.FromMilliseconds(10);
+        TimeSpan windowFollowDelay = TimeSpan.FromMilliseconds(270);
 
         public ViewWindow()
         {
             InitializeComponent();
-            followedPid = -1;
             watcher = null;
 
             windowFollowTimer = new DispatcherTimer();
             windowFollowTimer.Tick += new EventHandler(FollowPIDWindow);
-            windowFollowTimer.Interval = TimeSpan.FromMilliseconds(500);
+            windowFollowTimer.Interval = windowFollowDelay;
+            lastWindowMove = maxWaitDelay + 1;
 
             followedWindowSize = new RECT();
+            oldPos = new RECT();
         }
+
+        [DllImport("user32.dll")]
+        static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int X, int Y, int cx, int cy, uint uFlags);
 
         [DllImport("user32.dll", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
         static extern bool GetWindowRect(IntPtr hWnd, ref RECT lpRect);
+
         [StructLayout(LayoutKind.Sequential)]
         private struct RECT
         {
@@ -55,9 +68,13 @@ namespace WpfOverview
             public int Bottom;
         }
 
-
-        private void InitFileWatching()
+        protected override void OnSourceInitialized(EventArgs e)
         {
+            HwndSource hwndSource = PresentationSource.FromVisual(this) as HwndSource;
+
+            if (hwndSource != null)
+                thisHandle = hwndSource.Handle;
+
             string watchedFile =
                 System.Environment.GetEnvironmentVariable("TEMP")
                 + "\\overviewFile.txt";
@@ -67,19 +84,56 @@ namespace WpfOverview
 
             watcher = new FileWatcher(watchedFile
                                      , new FileWatcher.FileChangedHandler(onFileChange));
+            FollowedPid = -1;
         }
+
 
         void FollowPIDWindow(object sender, EventArgs e)
         {
             try
             {
                 followedProcess.Refresh();
+
+                // get the followed window handle
                 IntPtr windowHandle = followedProcess.MainWindowHandle;
 
                 GetWindowRect(windowHandle, ref followedWindowSize);
-                Left = Math.Max( followedWindowSize.Left - Width, 0 );
-                Top = followedWindowSize.Top;
-                Height = followedWindowSize.Bottom - followedWindowSize.Top;
+
+                int difference = Math.Abs(oldPos.Bottom - followedWindowSize.Bottom)
+                               + Math.Abs(oldPos.Top - followedWindowSize.Top)
+                               + Math.Abs(oldPos.Left - followedWindowSize.Left)
+                               + Math.Abs(oldPos.Right - followedWindowSize.Right);
+
+                if ( difference > 0 )
+                {
+                    Left = Math.Max( followedWindowSize.Left - Width, 0 );
+                    Top = followedWindowSize.Top;
+                    Height = followedWindowSize.Bottom - followedWindowSize.Top;
+
+                    oldPos = followedWindowSize;
+                    // here we handle the speedup to follow the window
+                    // to obtain a smoother move
+                    lastWindowMove = 0;
+                    if (windowFollowTimer.Interval != fastTimerInterval)
+                        windowFollowTimer.Interval = fastTimerInterval;
+                }
+                else if (windowFollowTimer.Interval.Milliseconds == fastTimerInterval.Milliseconds)
+                {
+                    // when the window don't move anymore, we hope to bring
+                    // back the old slow timer.
+                    lastWindowMove += fastTimerInterval.Milliseconds;
+                    if (lastWindowMove > maxWaitDelay)
+                        windowFollowTimer.Interval = windowFollowDelay;
+                }
+
+                GetWindowRect(thisHandle, ref followedWindowSize);
+                SetWindowPos( thisHandle
+                            , windowHandle
+                            , followedWindowSize.Left
+                            , followedWindowSize.Top
+                            , followedWindowSize.Right - followedWindowSize.Left
+                            , followedWindowSize.Bottom - followedWindowSize.Top
+                            , 0);
             }
             catch (PlatformNotSupportedException)
             {   /* I'm not sure about this one, but I'm
@@ -109,9 +163,15 @@ namespace WpfOverview
                     FollowPIDWindow(null, null);
                     if (!windowFollowTimer.IsEnabled)
                         windowFollowTimer.Start();
+
+                    Visibility = Visibility.Visible;
                 }
-                else if (windowFollowTimer.IsEnabled)
-                    windowFollowTimer.Stop();
+                else
+                {
+                    Visibility = Visibility.Hidden;
+                    if (windowFollowTimer.IsEnabled)
+                        windowFollowTimer.Stop();
+                }
             }
         }
 
@@ -159,14 +219,7 @@ namespace WpfOverview
                    * Ignore if to big */
                     FollowedPid = -1;
                 }
-                catch (System.Exception e)
-                {
-                    System.Console.WriteLine(e.Message);
-                }
             }
         }
-
-        private void Window_Loaded(object sender, RoutedEventArgs e)
-            { InitFileWatching(); }
     }
 }
