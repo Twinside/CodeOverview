@@ -115,7 +115,9 @@ namespace WpfOverview
             using (var file = File.Create(watchedFile)) {}
 
             watcher = new FileWatcher(watchedFile
-                                     , new FileWatcher.FileChangedHandler(onFileChange));
+                                     , new FileWatcher.FileChangedHandler(onFileChange)
+                                     , new FileWatcher.FileChangedHandler(a => Application.Current.Shutdown())
+                                     );
         }
 
 
@@ -304,12 +306,11 @@ namespace WpfOverview
                         , Key.NumPad6, Key.NumPad6, Key.NumPad7
                         , Key.NumPad8, Key.NumPad9
                         };
+
         private void updateVimView( Point pos )
         {
             string  heightI = ((int)pos.Y + 1).ToString();
 
-            //SendKeyToFollowedProcess(Key.Escape);
-            //SendKeyToFollowedProcess(Key.I);
             foreach (char c in heightI)
                 SendKeyToFollowedProcess( numbers[(int)c - (int)'0'] );
 
@@ -318,7 +319,8 @@ namespace WpfOverview
 
             // we assume that showing width doesn't change
             // and update just the top of our rect
-            ViewRectTop = Math.Min(Math.Max(pos.Y - ViewRectHeight / 2, 0.0), pictureViewer.ActualHeight);
+            ViewRectTop = Math.Min( Math.Max(pos.Y - ViewRectHeight / 2, 0.0)
+                                  , pictureViewer.ActualHeight - ViewRectHeight);
         }
 
         private void pictureViewer_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)

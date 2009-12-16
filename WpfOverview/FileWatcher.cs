@@ -36,12 +36,15 @@ namespace WpfOverview
     public class FileWatcher : FileSystemWatcher
     {
         public delegate void FileChangedHandler(string filepath);
-        public FileWatcher(string filepath, FileChangedHandler handler) :
-            base(System.IO.Path.GetDirectoryName(filepath),
-            System.IO.Path.GetFileName(filepath))
+
+        public FileWatcher(string filepath, FileChangedHandler handler, FileChangedHandler deltedHandler) :
+            base(System.IO.Path.GetDirectoryName(filepath)
+                , System.IO.Path.GetFileName(filepath))
         {
             FilePath = filepath;
             Handler = handler;
+            delHandler = deltedHandler;
+
             NotifyFilter =
                 NotifyFilters.FileName |
                 NotifyFilters.Attributes |
@@ -49,11 +52,19 @@ namespace WpfOverview
                 NotifyFilters.LastWrite |
                 NotifyFilters.Security |
                 NotifyFilters.Size;
+
             Changed += new FileSystemEventHandler(delegate(object sender, FileSystemEventArgs e)
             {
                 System.Windows.Application.Current.Dispatcher.BeginInvoke(
                     new VoidDelegate(this.FileChanged));
             });
+
+            Deleted += new FileSystemEventHandler(delegate(object sender, FileSystemEventArgs e)
+            {
+                System.Windows.Application.Current.Dispatcher.BeginInvoke(
+                    new VoidDelegate(this.FileDeleted));
+            });
+
             UpdateFileInfo();
             Timer = new Timer(100);
             Timer.AutoReset = false;
@@ -104,6 +115,8 @@ namespace WpfOverview
                     Timer.Start();
         }
 
+        void FileDeleted() { delHandler(FilePath); }
+
         void TimerElapsed()
         {
             UpdateFileInfo();
@@ -111,6 +124,7 @@ namespace WpfOverview
         }
 
         string FilePath;
+        FileChangedHandler delHandler;
         FileChangedHandler Handler;
         DateTime LastWriteTime;
         long LastFileLength;
