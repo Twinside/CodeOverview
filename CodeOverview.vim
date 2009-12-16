@@ -1,7 +1,7 @@
-"if exists("g:__CODEOVERVIEW_VIM__")
-    "finish
-"endif
-"let g:__CODEOVERVIEW_VIM__ = 1
+if exists("g:__CODEOVERVIEW_VIM__")
+    finish
+endif
+let g:__CODEOVERVIEW_VIM__ = 1
 
 if !has("win32")
     " Windows only plugin
@@ -9,12 +9,15 @@ if !has("win32")
 endif
 
 let s:tempDir = expand("$TEMP") . '\'
+let s:friendProcess = globpath( &rtp, 'plugin/WpfOverview.exe' )
+let s:overviewProcess = globpath( &rtp, 'plugin/codeoverview.exe' )
 
+" Launch the tracking window for this instance of gVIM
+" Configure some script variables used in this script.
 fun! s:LaunchFriendProcess() "{{{
     let pid = getpid()
-    "call system("cmd /c start WpfOverview.exe " . pid)
+    call system('cmd /c start "' . s:friendProcess . '" ' . pid)
     let s:wakeFile = s:tempDir . 'overviewFile' . string(pid) . '.txt'
-    echom s:wakeFile
     let s:tempFile = s:tempDir . 'previewer' . string(pid) . '.png'
 endfunction "}}}
 
@@ -25,7 +28,7 @@ endfunction "}}}
 fun! s:SnapshotFile() "{{{
     " If file has been modified, we must dump it somewhere
     if &modified
-        let lines = getline( 0, getline('$') )
+        let lines = getline( 0, line('$') )
         let filename = s:tempDir . expand( '%:t' )
         call writefile(lines, filename)
         let lines = [] " Just to let the garbage collector do it's job.
@@ -48,7 +51,7 @@ fun! s:SnapshotFile() "{{{
     endif
 
     " Generate the new image file
-    let commandLine = "codeoverview -o " . s:tempFile
+    let commandLine = s:overviewProcess . " -o " . s:tempFile
                              \ . " -t " . string(winInfo.topline)
                              \ . " --vs=" . string(lastVisibleLine - winInfo.topline)
                              \ . highlighted
@@ -60,11 +63,8 @@ fun! s:SnapshotFile() "{{{
     else
         call writefile( [commandLine, wakeCommand], s:tempDir . 'command.cmd' )
     endif
+
     call system( s:tempDir . 'command.cmd' )
-
-
-    " Writing this file should update the display...
-    " call writefile( [s:tempFile], s:wakeFile )
 endfunction "}}}
 
 fun! s:PutCodeOverviewHook() "{{{
@@ -79,13 +79,21 @@ fun! s:PutCodeOverviewHook() "{{{
     augroup END
 endfunction "}}}
 
-augroup CodeOverview
-    au!
-augroup END
+fun! s:RemoveCodeOverviewHook() "{{{
+    augroup CodeOverview
+        au!
+    augroup END
+endfunction "}}}
 
-"call s:LaunchFriendProcess()
-call s:PutCodeOverviewHook()
-"call s:SnapshotFile()
+if !exists("g:codeoverview_no_start")
+    call s:LaunchFriendProcess()
+endif
 
+if exists("g:codeoverview_autoupdate")
+    call s:PutCodeOverviewHook()
+endif
+
+command! CodeOverviewNoAuto call s:RemoveCodeOverviewHook()
+command! CodeOverviewAuto call s:PutCodeOverviewHook()
 command! SnapshotFile call s:SnapshotFile()
 

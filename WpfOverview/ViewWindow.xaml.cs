@@ -16,13 +16,14 @@ using System.Windows.Threading;
 using System.Runtime.InteropServices;
 using System.Diagnostics;
 using System.Windows.Interop;
+using System.ComponentModel;
 
 namespace WpfOverview
 {
     /// <summary>
     /// Interaction logic for Window1.xaml
     /// </summary>
-    public partial class ViewWindow : Window
+    public partial class ViewWindow : Window, INotifyPropertyChanged
     {
         FileWatcher watcher;
 
@@ -53,6 +54,7 @@ namespace WpfOverview
             oldPos = new RECT();
         }
 
+        #region Win32 pInvoke
         const UInt32 WM_KEYDOWN = 0x0100;
         const UInt32 WM_KEYUP = 0x0101;
 
@@ -75,6 +77,7 @@ namespace WpfOverview
             public int Right;
             public int Bottom;
         }
+        #endregion
 
         private void SendKeyToFollowedProcess( Key  k )
         {
@@ -192,33 +195,106 @@ namespace WpfOverview
             }
         }
 
+        double viewRectHeight = 0.0;
+        Thickness viewRectMargin;
+
+        public Thickness ViewRectMargin
+        {
+            get { return viewRectMargin; }
+            set {
+                viewRectMargin = value;
+                OnPropertyChanged("ViewRectMargin");
+            }
+        }
+
+        public double ViewRectTop
+        {
+            get { return viewRectMargin.Top; }
+            set {
+                viewRectMargin.Top = value;
+                OnPropertyChanged("ViewRectTop");
+                OnPropertyChanged("ViewRectMargin");
+                //viewRect.UpdateLayout();
+            }
+        }
+
+        public double ViewRectHeight
+        {
+            get { return viewRectHeight; }
+            set {
+                viewRectHeight = value;
+                OnPropertyChanged("ViewRectHeight");
+            }
+        }
+
+        protected override void OnRender(DrawingContext drawingContext)
+        {
+            base.OnRender(drawingContext);
+            drawingContext.DrawRectangle( Brushes.Blue, new Pen(Brushes.Red, 1), new Rect(0,0,10,10));
+        }
+
         private void onFileChange(string filename)
         {
             using (FileStream fs = File.OpenRead(filename))
             using (TextReader reader = new StreamReader(fs))
             {
-                try
-                {
-                    BitmapImage newOverview = new BitmapImage();
-                    newOverview.BeginInit();
-                    newOverview.CreateOptions = BitmapCreateOptions.IgnoreImageCache;
-                    newOverview.CacheOption = BitmapCacheOption.OnLoad;
-                    newOverview.UriSource = new Uri(reader.ReadLine());
-                    newOverview.EndInit();
+                string line = "";
 
-                    pictureViewer.Source = newOverview;
-                }
-                catch (UriFormatException)
-                {
-                    /* Bad image... putting empty image instead */
-                    pictureViewer.Source = null;
-                }
+                try { line = reader.ReadLine(); }
                 catch (IOException)
-                { /* can happen, not a problem in this case. */ }
+                {   /* can happen, not a problem in this case. */
+                    return;
+                }
                 catch (ArgumentOutOfRangeException)
                 { /* we're searching for a PID and a path, nothing big
                    * Ignore if to big */
                     Application.Current.Shutdown();
+                }
+
+                switch (line)
+                {
+                    case "quit":
+                        Application.Current.Shutdown();
+                        break;
+
+                    default:
+                        string[] infos = line.Split('?');
+                        string file = infos[infos.Length - 1];
+
+                        try {
+                            ViewRectTop = int.Parse(infos[0]);
+                            ViewRectHeight = int.Parse(infos[1]) - ViewRectTop;
+                        }
+                        catch (System.Exception)
+                        {   /* don't care about parsing errors for this one */
+                            ViewRectTop = 0.0;
+                            ViewRectHeight = 0.0;
+                        }
+
+
+                        try
+                        {
+                            BitmapImage newOverview = new BitmapImage();
+
+                            newOverview.BeginInit();
+                            newOverview.CreateOptions = BitmapCreateOptions.IgnoreImageCache;
+                            newOverview.CacheOption = BitmapCacheOption.OnLoad;
+                            newOverview.UriSource = new Uri(file);
+                            newOverview.EndInit();
+
+                            pictureViewer.Source = newOverview;
+                        }
+                        catch (UriFormatException)
+                        {
+                        #if DEBUG
+                            MessageBox.Show(line);
+                        #endif
+                            /* Bad image... putting empty image instead */
+                            pictureViewer.Source = null;
+                        }
+                        InvalidateVisual();
+                        break;
+
                 }
             }
         }
@@ -239,6 +315,10 @@ namespace WpfOverview
 
             SendKeyToFollowedProcess(Key.G);
             SendKeyToFollowedProcess(Key.G);
+
+            // we assume that showing width doesn't change
+            // and update just the top of our rect
+            ViewRectTop = Math.Min(Math.Max(pos.Y - ViewRectHeight / 2, 0.0), pictureViewer.ActualHeight);
         }
 
         private void pictureViewer_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
@@ -249,5 +329,17 @@ namespace WpfOverview
             if (e.LeftButton == MouseButtonState.Pressed)
                 updateVimView(e.GetPosition((Image)sender));
         }
+
+        #region INotifyPropertyChanged Members
+
+        public event PropertyChangedEventHandler PropertyChanged;
+
+        protected void OnPropertyChanged( string propName )
+        {
+            if (this.PropertyChanged != null)
+                PropertyChanged(this, new PropertyChangedEventArgs(propName));
+        }
+
+        #endregion
     }
 }

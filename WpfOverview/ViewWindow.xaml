@@ -1,9 +1,21 @@
 ﻿<Window x:Class="WpfOverview.ViewWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    Title="CodeOverview" Height="270" Width="80" MinWidth="30" MinHeight="80" WindowStyle="None">
+    Title="CodeOverview" Height="270" Width="80" MinWidth="30" MinHeight="80" WindowStyle="None"
+    ShowInTaskbar="False"
+    Name="MainWindow">
     <Grid SnapsToDevicePixels="True">
-        <Image Name="pictureViewer" Stretch="None" MouseLeftButtonUp="pictureViewer_MouseLeftButtonUp" HorizontalAlignment="Left" VerticalAlignment="Top" MouseMove="pictureViewer_MouseMove" />
+        <Image Name="pictureViewer" Stretch="None" MouseLeftButtonUp="pictureViewer_MouseLeftButtonUp"
+                                    HorizontalAlignment="Left" VerticalAlignment="Top"
+                                    MouseMove="pictureViewer_MouseMove"
+                                    Grid.Row="0" Grid.Column="0" />
+        <Rectangle Name="viewRect" Fill="Blue" Opacity="0.3"
+                   Grid.Row="0" Grid.Column="0"
+                   IsHitTestVisible="False"
+                   Margin="{Binding ElementName=MainWindow, Path=ViewRectMargin}"
+                   Height="{Binding ElementName=MainWindow, Path=ViewRectHeight}"
+                   Width="{Binding ElementName=pictureViewer, Path=ActualWidth}"
+                   VerticalAlignment="Top" HorizontalAlignment="Left"  />
     </Grid>
 </Window>
 
