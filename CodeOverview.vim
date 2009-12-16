@@ -1,24 +1,110 @@
+"=============================================================================
+" What Is This: Launch an helper window to display overview of edited files.
+" File: CodeOverview
+" Author: Vincent B <twinside@gmail.com>
+" Last Change: 2009 déc. 16
+" Version: 1.0
+" Require:
+"   * set nocompatible
+"       somewhere on your .vimrc
+"   * Running on Windows with .net >= 3.0
+"   * Running gVim (not vim)
+"
+" Usage:
+"   :ShowCodeOverview 
+"       Start the overview panel.
+"
+"   :HideCodeOverview 
+"       Hide the overview panel, doesn't deactivate
+"       Also stop automatic overview generation.
+"
+"   :CodeOverviewNoAuto 
+"       Disable automatic overview generation.
+"
+"   :CodeOverviewAuto 
+"       Setup automatic overview generation.
+"
+"   :SnapshotFile 
+"       Refresh your current overview.
+"
+" Additional:
+"   let g:codeoverview_autoupdate = 1
+"       To automaticly start automatic overview generation.
+"       Otherwise you have to manually call SnapshotFile
+"       to update the view.
+"       (disabled by default)
+"
+" ChangeLog:
+"     * 1.0  : Original version
+"
 if exists("g:__CODEOVERVIEW_VIM__")
     finish
 endif
 let g:__CODEOVERVIEW_VIM__ = 1
 
-if !has("win32")
+if !has("win32") || !has("gui_running")
     " Windows only plugin
+    " only with GUI
     finish
 endif
 
 let s:tempDir = expand("$TEMP") . '\'
-let s:friendProcess = globpath( &rtp, 'plugin/WpfOverview.exe' )
-let s:overviewProcess = globpath( &rtp, 'plugin/codeoverview.exe' )
+let s:friendProcess = globpath( &rtp, 'plugin/WpfOverview.exe', 1 )
+let s:overviewProcess = globpath( &rtp, 'plugin/codeoverview.exe', 1 )
+let s:wakeFile = s:tempDir . 'overviewFile' . string(getpid()) . '.txt'
+let s:tempFile = s:tempDir . 'previewer' . string(getpid()) . '.png'
+let s:tempCommandFile = s:tempDir . 'command.cmd'
+let s:friendProcessStarted = 0
+
+if s:friendProcess == '' || s:overviewProcess == ''
+    echo "Can't find friend executables, aborting CodeOverview load"
+    finish
+endif
+
+au VimLeavePre * call s:RemoveTempsFile()
+
+fun! s:RemoveTempsFile() "{{{
+    call delete( s:wakeFile )
+    call delete( s:tempFile )
+    call delete( s:tempCommandFile )
+endfunction "}}}
+
+fun! s:StopFriendProcess() "{{{
+    if s:friendProcessStarted == 0
+        echo 'Friend process is already stopped'
+        return
+    endif
+
+    call writefile( ["quit"], s:wakeFile )
+    let s:friendProcessStarted = 0
+
+    call s:RemoveCodeOverviewHook()
+
+    command! CodeOverviewNoAuto echo 'CodeOverview Friend Process not started!'
+    command! CodeOverviewAuto echo 'CodeOverview Friend Process not started!'
+    command! SnapshotFile echo 'CodeOverview Friend Process not started!'
+endfunction "}}}
 
 " Launch the tracking window for this instance of gVIM
 " Configure some script variables used in this script.
 fun! s:LaunchFriendProcess() "{{{
-    let pid = getpid()
-    call system('cmd /c start "' . s:friendProcess . '" ' . pid)
-    let s:wakeFile = s:tempDir . 'overviewFile' . string(pid) . '.txt'
-    let s:tempFile = s:tempDir . 'previewer' . string(pid) . '.png'
+    if s:friendProcessStarted == 1
+        echo 'Friend process already started'
+        return
+    endif
+
+    call system('cmd /c start ' . s:friendProcess . ' ' . string( getpid() ))
+    let s:friendProcessStarted = 1
+
+    if exists("g:codeoverview_autoupdate")
+        call s:PutCodeOverviewHook()
+    endif
+
+    command! CodeOverviewNoAuto call s:RemoveCodeOverviewHook()
+    command! CodeOverviewAuto call s:PutCodeOverviewHook()
+    command! SnapshotFile call s:SnapshotFile()
+
+    call s:SnapshotFile()
 endfunction "}}}
 
 " This fuction extract data from the current view,
@@ -50,21 +136,25 @@ fun! s:SnapshotFile() "{{{
         let highlighted = ''
     endif
 
+    " -t " . string(winInfo.topline)
+    " --vs=" . string(lastVisibleLine - winInfo.topline)
+    
     " Generate the new image file
     let commandLine = s:overviewProcess . " -o " . s:tempFile
-                             \ . " -t " . string(winInfo.topline)
-                             \ . " --vs=" . string(lastVisibleLine - winInfo.topline)
-                             \ . highlighted
-                             \ . " " . filename
+                             \ . highlighted . " " . filename
+
     " Make an non-blocking start
-    let wakeCommand = 'echo ' . s:tempFile . ' > ' . s:wakeFile
+    let wakeCommand = 'echo ' . string(winInfo.topline) 
+                      \ . '?' . string(lastVisibleLine)
+                      \ . '?' . s:tempFile . ' > ' . s:wakeFile
+
     if &modified
-        call writefile( [commandLine, wakeCommand, 'erase ' . filename], s:tempDir . 'command.cmd' )
+        call writefile( [commandLine, wakeCommand, 'erase ' . filename], s:tempCommandFile )
     else
-        call writefile( [commandLine, wakeCommand], s:tempDir . 'command.cmd' )
+        call writefile( [commandLine, wakeCommand], s:tempCommandFile )
     endif
 
-    call system( s:tempDir . 'command.cmd' )
+    call system( s:tempCommandFile )
 endfunction "}}}
 
 fun! s:PutCodeOverviewHook() "{{{
@@ -85,15 +175,9 @@ fun! s:RemoveCodeOverviewHook() "{{{
     augroup END
 endfunction "}}}
 
-if !exists("g:codeoverview_no_start")
-    call s:LaunchFriendProcess()
-endif
-
-if exists("g:codeoverview_autoupdate")
-    call s:PutCodeOverviewHook()
-endif
-
-command! CodeOverviewNoAuto call s:RemoveCodeOverviewHook()
-command! CodeOverviewAuto call s:PutCodeOverviewHook()
-command! SnapshotFile call s:SnapshotFile()
+command! CodeOverviewNoAuto echo 'CodeOverview Friend Process not started!'
+command! CodeOverviewAuto echo 'CodeOverview Friend Process not started!'
+command! SnapshotFile echo 'CodeOverview Friend Process not started!'
+command! ShowCodeOverview call s:LaunchFriendProcess()
+command! HideCodeOverview call s:StopFriendProcess()
 
