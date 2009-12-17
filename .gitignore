@@ -1,6 +1,7 @@
 dist
 Debug
 Release
+tags
 *.png
 *.exe
 *.ncb
