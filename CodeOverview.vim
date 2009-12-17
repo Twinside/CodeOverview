@@ -3,12 +3,12 @@
 " File: CodeOverview
 " Author: Vincent B <twinside@gmail.com>
 " Last Change: 2009 déc. 17
-" Version: 1.1
+" Version: 1.2
 " Require:
 "   * set nocompatible
 "       somewhere on your .vimrc
 "   * Running on Windows with .net >= 3.0
-"   * Running gVim (not vim)
+"   * Running gVim version 7.2 or greater (not vim)
 "
 " Usage:
 "   :ShowCodeOverview 
@@ -35,6 +35,7 @@
 "       (disabled by default)
 "
 " ChangeLog:
+"     * 1.2  : Added check for the version of gvim.
 "     * 1.1  : fixed problem with globpath flag for not cutting-edge
 "              vim.
 "     * 1.0  : Original version
@@ -47,6 +48,13 @@ let g:__CODEOVERVIEW_VIM__ = 1
 if !has("win32") || !has("gui_running")
     " Windows only plugin
     " only with GUI
+    finish
+endif
+
+" 
+if v:version < 702 || (v:version == 702 && !has('patch264'))
+    echo 'Your vim version is too old for the CodeOverview plugin, please update it'
+    echo 'last version avaible at http://sourceforge.net/projects/cream/files/Vim'
     finish
 endif
 
