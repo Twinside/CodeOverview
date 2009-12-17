@@ -2,8 +2,8 @@
 " What Is This: Launch an helper window to display overview of edited files.
 " File: CodeOverview
 " Author: Vincent B <twinside@gmail.com>
-" Last Change: 2009 déc. 16
-" Version: 1.0
+" Last Change: 2009 déc. 17
+" Version: 1.1
 " Require:
 "   * set nocompatible
 "       somewhere on your .vimrc
@@ -35,6 +35,8 @@
 "       (disabled by default)
 "
 " ChangeLog:
+"     * 1.1  : fixed problem with globpath flag for not cutting-edge
+"              vim.
 "     * 1.0  : Original version
 "
 if exists("g:__CODEOVERVIEW_VIM__")
