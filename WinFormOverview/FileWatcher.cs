@@ -50,16 +50,22 @@ namespace WinFormOverview
                 NotifyFilters.Size;
             Changed += new FileSystemEventHandler(delegate(object sender, FileSystemEventArgs e)
             {
+                // TODO : Find alternative !!
+                /*
                 System.Windows.Application.Current.Dispatcher.BeginInvoke(
                     new VoidDelegate(this.FileChanged));
+                 */
             });
             UpdateFileInfo();
             Timer = new Timer(100);
             Timer.AutoReset = false;
             Timer.Elapsed += new ElapsedEventHandler(delegate(object sender, ElapsedEventArgs e)
             {
+                // TODO : Find alternative !!
+                /*
                 System.Windows.Application.Current.Dispatcher.BeginInvoke(
                     new VoidDelegate(this.TimerElapsed));
+                 */
             });
             EnableRaisingEvents = true;
         }
