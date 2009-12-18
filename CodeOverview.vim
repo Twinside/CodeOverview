@@ -3,7 +3,7 @@
 " File: CodeOverview
 " Author: Vincent B <twinside@gmail.com>
 " Last Change: 2009 déc. 18
-" Version: 1.3
+" Version: 1.3.1
 " Require:
 "   * set nocompatible
 "       somewhere on your .vimrc
@@ -34,7 +34,13 @@
 "       to update the view.
 "       (disabled by default)
 "
+" Thanks:
+"  - Amjidanutpan Rama : forcing me to test the plugin
+"		         under Windows XP.
 " ChangeLog:
+"     * 1.3.1: Fixed problem of path under Windows XP
+"	       Fixed problem of overview when file has no
+"	       name
 "     * 1.3  : Fixed problem when executables are put in
 "              Program Files (yeah, I mentioned to put it
 "              in ~/vimfiles, whatever...)
@@ -71,7 +77,7 @@ let s:friendProcess = '"' . globpath( &rtp, 'plugin/WpfOverview.exe' ) . '"'
 let s:overviewProcess = '"' . globpath( &rtp, 'plugin/codeoverview.exe' ) . '"'
 execute 'set wildignore=' . s:tempWildIgnore
 
-let s:wakeFile = '"' . s:tempDir . 'overviewFile' . string(getpid()) . '.txt"'
+let s:wakeFile = s:tempDir . 'overviewFile' . string(getpid()) . '.txt'
 let s:tempFile = s:tempDir . 'previewer' . string(getpid()) . '.png'
 let s:tempCommandFile = s:tempDir . 'command.cmd'
 let s:friendProcessStarted = 0
@@ -136,11 +142,12 @@ fun! s:SnapshotFile() "{{{
     " If file has been modified, we must dump it somewhere
     if &modified
         let lines = getline( 0, line('$') )
-        let filename = s:tempDir . expand( '%:t' )
+        let filename = s:tempDir . 'tempVimFile' . expand( '%:t' )
         call writefile(lines, filename)
+	let filename = '"' . filename . '"'
         let lines = [] " Just to let the garbage collector do it's job.
     else
-        let filename = expand( '%' )
+        let filename = '"' . expand( '%' ) . '"'
     endif
 
     let pid = getpid()
@@ -157,17 +164,14 @@ fun! s:SnapshotFile() "{{{
         let highlighted = ''
     endif
 
-    " -t " . string(winInfo.topline)
-    " --vs=" . string(lastVisibleLine - winInfo.topline)
-    
     " Generate the new image file
-    let commandLine = s:overviewProcess . " -o " . s:tempFile
+    let commandLine = s:overviewProcess . ' -o "' . s:tempFile . '" '
                              \ . highlighted . " " . filename
 
     " Make an non-blocking start
     let wakeCommand = 'echo ' . string(winInfo.topline) 
                       \ . '?' . string(lastVisibleLine)
-                      \ . '?' . s:tempFile . ' > ' . s:wakeFile
+                      \ . '?' . s:tempFile . ' > "' . s:wakeFile . '"'
 
     if &modified
         call writefile( [commandLine, wakeCommand, 'erase ' . filename], s:tempCommandFile )

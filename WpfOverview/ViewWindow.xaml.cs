@@ -390,10 +390,19 @@ namespace WpfOverview
             {
                 followedPid = value;
 
-                followedProcess = Process.GetProcessById(followedPid);
-                FollowPIDWindow(null, null);
-                if (!windowFollowTimer.IsEnabled)
-                    windowFollowTimer.Start();
+                try
+                {
+                    followedProcess = Process.GetProcessById(followedPid);
+                    FollowPIDWindow(null, null);
+
+                    if (!windowFollowTimer.IsEnabled)
+                        windowFollowTimer.Start();
+                }
+                catch (ArgumentException)
+                {   /* We didn't found a process with
+                     * the good PID, we must shut down */
+                    Application.Current.Shutdown();
+                }
             }
         }
 
@@ -494,6 +503,8 @@ namespace WpfOverview
                             ViewRectHeight = 0.0;
                         }
 
+                        if (!File.Exists(file))
+                            return;
 
                         try
                         {
