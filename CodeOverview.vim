@@ -2,8 +2,8 @@
 " What Is This: Launch an helper window to display overview of edited files.
 " File: CodeOverview
 " Author: Vincent B <twinside@gmail.com>
-" Last Change: 2009 déc. 17
-" Version: 1.2
+" Last Change: 2009 déc. 18
+" Version: 1.3
 " Require:
 "   * set nocompatible
 "       somewhere on your .vimrc
@@ -35,6 +35,9 @@
 "       (disabled by default)
 "
 " ChangeLog:
+"     * 1.3  : Fixed problem when executables are put in
+"              Program Files (yeah, I mentioned to put it
+"              in ~/vimfiles, whatever...)
 "     * 1.2  : Added check for the version of gvim.
 "     * 1.1  : fixed problem with globpath flag for not cutting-edge
 "              vim.
@@ -64,11 +67,11 @@ let s:tempDir = expand("$TEMP") . '\'
 " flag to avoid wildignore, so we must do it by hand
 let s:tempWildIgnore = &wildignore
 set wildignore=
-let s:friendProcess = globpath( &rtp, 'plugin/WpfOverview.exe' )
-let s:overviewProcess = globpath( &rtp, 'plugin/codeoverview.exe' )
+let s:friendProcess = '"' . globpath( &rtp, 'plugin/WpfOverview.exe' ) . '"'
+let s:overviewProcess = '"' . globpath( &rtp, 'plugin/codeoverview.exe' ) . '"'
 execute 'set wildignore=' . s:tempWildIgnore
 
-let s:wakeFile = s:tempDir . 'overviewFile' . string(getpid()) . '.txt'
+let s:wakeFile = '"' . s:tempDir . 'overviewFile' . string(getpid()) . '.txt"'
 let s:tempFile = s:tempDir . 'previewer' . string(getpid()) . '.png'
 let s:tempCommandFile = s:tempDir . 'command.cmd'
 let s:friendProcessStarted = 0
@@ -110,7 +113,8 @@ fun! s:LaunchFriendProcess() "{{{
         return
     endif
 
-    call system('cmd /c start ' . s:friendProcess . ' ' . string( getpid() ))
+    call system('cmd /s /c "start "CodeOverview Launcher" /b '
+             \ . s:friendProcess . ' ' . string( getpid() ) . '"')
     let s:friendProcessStarted = 1
 
     if exists("g:codeoverview_autoupdate")
@@ -171,7 +175,7 @@ fun! s:SnapshotFile() "{{{
         call writefile( [commandLine, wakeCommand], s:tempCommandFile )
     endif
 
-    call system( s:tempCommandFile )
+    call system( '"' . s:tempCommandFile . '"' )
 endfunction "}}}
 
 fun! s:PutCodeOverviewHook() "{{{
