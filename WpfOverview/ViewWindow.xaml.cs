@@ -64,11 +64,6 @@ namespace WpfOverview
         RECT oldPos;
 
         /// <summary>
-        /// Size of windowHandle before it was maximized.
-        /// </summary>
-        RECT unmaximizedSize;
-
-        /// <summary>
         /// Current position of windowHandle
         /// </summary>
         RECT followedWindowSize;
@@ -201,6 +196,12 @@ namespace WpfOverview
             public int Top;
             public int Right;
             public int Bottom;
+            public static int Diff( RECT a, RECT b)
+            {
+                return Math.Abs(a.Top - b.Top) + Math.Abs(a.Bottom - b.Bottom)
+                     + Math.Abs(a.Left - a.Left) + Math.Abs(a.Right - b.Right);
+
+            }
         }
         #endregion
 
@@ -256,6 +257,142 @@ namespace WpfOverview
                                      );
         }
 
+        enum TrackingState
+        {
+            TrackingMove,
+            WaitingMaximization,
+            Maximized
+        }
+
+        TrackingState currentState;
+
+        void    waitingMaximization()
+        {
+            GetWindowRect(windowHandle, ref followedWindowSize);
+
+            // animation is finished.
+            if ( RECT.Diff( oldPos, followedWindowSize ) == 0 )
+            {
+                // ok, the user just to maximize it, we're gonna give it to him
+                GetWindowRect( thisHandle, ref thisWindowSize);
+
+                int thisWidth = thisWindowSize.Right - thisWindowSize.Left;
+
+                Left = Math.Max( followedWindowSize.Left - thisWidth, 0 );
+                Top = followedWindowSize.Top;
+                Height = followedWindowSize.Bottom - followedWindowSize.Top;
+
+                SetWindowPos( windowHandle
+                            , IntPtr.Zero
+                            , followedWindowSize.Left + thisWidth
+                            , followedWindowSize.Top
+                            , followedWindowSize.Right - followedWindowSize.Left - thisWidth
+                            , followedWindowSize.Bottom - followedWindowSize.Top
+                            , 0
+                            );
+
+                SetWindowPos( thisHandle
+                            , windowHandle
+                            , followedWindowSize.Left
+                            , followedWindowSize.Top
+                            , thisWidth
+                            , followedWindowSize.Bottom - followedWindowSize.Top
+                            , 0
+                            );
+
+                currentState = TrackingState.Maximized;
+                windowFollowTimer.Interval = windowFollowDelay;
+            }
+
+            oldPos = followedWindowSize;
+        }
+
+        void    maximized()
+        {
+            GetWindowPlacement( windowHandle, ref windowInformation);
+
+            if ( (windowInformation.flags & SW_SHOWMAXIMIZED) == 0
+              && (windowInformation.flags & SW_MAXIMIZE) == 0)
+            {
+                currentState = TrackingState.TrackingMove;
+            }
+        }
+
+        void    tracking()
+        {
+            GetWindowRect(windowHandle, ref followedWindowSize);
+            GetWindowPlacement( windowHandle, ref windowInformation);
+
+            // if the window has been maximized
+            if ( (windowInformation.flags & SW_SHOWMAXIMIZED) != 0
+              || (windowInformation.flags & SW_MAXIMIZE) != 0)
+            {
+                currentState = TrackingState.WaitingMaximization;
+                windowFollowTimer.Interval = fastTimerInterval;
+            }
+            else
+            {
+                previouslyMaximized = false;
+
+                int difference = Math.Abs(oldPos.Bottom - followedWindowSize.Bottom)
+                               + Math.Abs(oldPos.Top - followedWindowSize.Top)
+                               + Math.Abs(oldPos.Left - followedWindowSize.Left)
+                               + Math.Abs(oldPos.Right - followedWindowSize.Right);
+
+                if ( difference > 0 )
+                {
+                    // To avoid problem with maximization under windows XP...
+                    if (ignoreNextMove)
+                    {
+                        #if LOGGING
+                        logEvent( "# Ignored Moved < " + followedWindowSize.Left.ToString()
+                                        + ", " + followedWindowSize.Top.ToString()
+                                        + ", " + (followedWindowSize.Right - followedWindowSize.Left).ToString()
+                                        + ", " + (followedWindowSize.Bottom - followedWindowSize.Top).ToString()
+                                        + " >" );
+                        #endif
+                        ignoreNextMove = false;
+                        return;
+                    }
+
+                    #if LOGGING
+                    logEvent( "% Moved < " + followedWindowSize.Left.ToString()
+                                    + ", " + followedWindowSize.Top.ToString()
+                                    + ", " + (followedWindowSize.Right - followedWindowSize.Left).ToString()
+                                    + ", " + (followedWindowSize.Bottom - followedWindowSize.Top).ToString()
+                                    + " >" );
+                    #endif
+
+                    Left = Math.Max( followedWindowSize.Left - Width, 0 );
+                    Top = followedWindowSize.Top;
+                    Height = followedWindowSize.Bottom - followedWindowSize.Top;
+
+                    oldPos = followedWindowSize;
+                    // here we handle the speedup to follow the window
+                    // to obtain a smoother move
+                    lastWindowMove = 0;
+                    if (windowFollowTimer.Interval != fastTimerInterval)
+                        windowFollowTimer.Interval = fastTimerInterval;
+                }
+                else if (windowFollowTimer.Interval.Milliseconds == fastTimerInterval.Milliseconds)
+                {
+                    // when the window don't move anymore, we hope to bring
+                    // back the old slow timer.
+                    lastWindowMove += fastTimerInterval.Milliseconds;
+                    if (lastWindowMove > maxWaitDelay)
+                        windowFollowTimer.Interval = windowFollowDelay;
+                }
+
+                GetWindowRect(thisHandle, ref followedWindowSize);
+                SetWindowPos( thisHandle
+                            , windowHandle
+                            , followedWindowSize.Left
+                            , followedWindowSize.Top
+                            , followedWindowSize.Right - followedWindowSize.Left
+                            , followedWindowSize.Bottom - followedWindowSize.Top
+                            , 0);
+            }
+        }
 
         /// <summary>
         /// Function called by the windowFollowTimer to adjust this
@@ -265,169 +402,17 @@ namespace WpfOverview
         /// <param name="e">unused</param>
         void FollowPIDWindow(object sender, EventArgs e)
         {
+            followedProcess.Refresh();
+            // get the followed window handle
+            windowHandle = followedProcess.MainWindowHandle;
+
             try
             {
-                followedProcess.Refresh();
-
-                // get the followed window handle
-                windowHandle = followedProcess.MainWindowHandle;
-
-                GetWindowRect(windowHandle, ref followedWindowSize);
-                GetWindowPlacement( windowHandle, ref windowInformation);
-
-                // if the window has been maximized
-                if ( (windowInformation.flags & SW_SHOWMAXIMIZED) != 0
-                  || (windowInformation.flags & SW_MAXIMIZE) != 0)
+                switch (currentState)
                 {
-
-                    #if LOGGING
-                    logEvent( "! Maximized < " + followedWindowSize.Left.ToString()
-                                        + ", " + followedWindowSize.Top.ToString()
-                                        + ", " + (followedWindowSize.Right - followedWindowSize.Left).ToString()
-                                        + ", " + (followedWindowSize.Bottom - followedWindowSize.Top).ToString()
-                                        + " >" );
-                    logEvent("? normal : <" + windowInformation.rcNormalPosition.Left.ToString()
-                                        + ", " + windowInformation.rcNormalPosition.Top.ToString()
-                                        + ", " + (windowInformation.rcNormalPosition.Right - windowInformation.rcNormalPosition.Left).ToString()
-                                        + ", " + (windowInformation.rcNormalPosition.Bottom - windowInformation.rcNormalPosition.Top).ToString()
-                                        + " >" );
-                    logEvent("? max size : < " + windowInformation.ptMaxPosition.x.ToString()
-                                          + ", " + windowInformation.ptMaxPosition.y.ToString()
-                                           + " > < " + windowInformation.ptMinPosition.x.ToString()
-                                           + ", " + windowInformation.ptMinPosition.y.ToString()
-                                           + " >");
-                    #endif
-
-                    ignoreNextMove = true;
-
-                    // if the window has been previously maximized, the user want to 
-                    // get back the original window size.
-                    if (previouslyMaximized)
-                    {
-                        windowInformation.rcNormalPosition = unmaximizedSize;
-                        //SetWindowPlacement(windowHandle, ref windowInformation);
-                        //ShowWindow(windowHandle, SW_RESTORE);
-
-                        GetWindowRect( thisHandle, ref thisWindowSize);
-                        SetWindowPos( thisHandle
-                                    , windowHandle
-                                    , unmaximizedSize.Left - (thisWindowSize.Right - thisWindowSize.Left)
-                                    , unmaximizedSize.Top
-                                    , thisWindowSize.Right - thisWindowSize.Left
-                                    , unmaximizedSize.Bottom - unmaximizedSize.Top
-                                    , 0);
-
-                        // next maximization will be a real one.
-                        previouslyMaximized = false;
-                    }
-                    else
-                    {   // ok, the user just to maximize it, we're gonna give it to him
-                        GetWindowRect( thisHandle, ref thisWindowSize);
-
-                        // we keep the original size to be able to restore it later.
-                        unmaximizedSize = windowInformation.rcNormalPosition;
-
-                        windowInformation.rcNormalPosition = followedWindowSize;
-                        windowInformation.rcNormalPosition.Left += (thisWindowSize.Right - thisWindowSize.Left); /* MY WIDTH */
-
-                        // Here, we're going to hack. As the window is maximized, it's
-                        // size should be the size of the screen where it's maximized.
-                        // So take window size as screen size.
-                        //SetWindowPlacement(windowHandle, ref windowInformation);
-                        //ShowWindow(windowHandle, SW_RESTORE);
-
-                        // Windows XP fix :
-                        // maximization doesn't work well under Windows XP (why?)
-                        /*
-                        GetWindowRect( windowHandle, ref followedWindowSize );
-                        if ( followedWindowSize.Left != windowInformation.rcNormalPosition.Left
-                            || followedWindowSize.Top != windowInformation.rcNormalPosition.Right
-                            || followedWindowSize.Bottom != windowInformation.rcNormalPosition.Bottom
-                            || followedWindowSize.Right != windowInformation.rcNormalPosition.Right)
-                        {
-                            SetWindowPos( windowHandle
-                                        , IntPtr.Zero
-                                        , windowInformation.rcNormalPosition.Left
-                                        , windowInformation.rcNormalPosition.Top
-                                        , windowInformation.rcNormalPosition.Right - windowInformation.rcNormalPosition.Left
-                                        , windowInformation.rcNormalPosition.Bottom - windowInformation.rcNormalPosition.Top
-                                        , 0 );
-                        }
-                        //*/
-
-
-
-                        SetWindowPos( thisHandle
-                                    , windowHandle
-                                    , followedWindowSize.Left
-                                    , followedWindowSize.Top
-                                    , thisWindowSize.Right - thisWindowSize.Left
-                                    , followedWindowSize.Bottom - followedWindowSize.Top
-                                    , 0);
-
-                        // next maximization will be to restore previous size
-                        previouslyMaximized = true;
-                    }
-                }
-                else
-                {
-                    int difference = Math.Abs(oldPos.Bottom - followedWindowSize.Bottom)
-                                   + Math.Abs(oldPos.Top - followedWindowSize.Top)
-                                   + Math.Abs(oldPos.Left - followedWindowSize.Left)
-                                   + Math.Abs(oldPos.Right - followedWindowSize.Right);
-
-                    if ( difference > 0 )
-                    {
-                        // To avoid problem with maximization under windows XP...
-                        if (ignoreNextMove)
-                        {
-                            #if LOGGING
-                            logEvent( "# Ignored Moved < " + followedWindowSize.Left.ToString()
-                                            + ", " + followedWindowSize.Top.ToString()
-                                            + ", " + (followedWindowSize.Right - followedWindowSize.Left).ToString()
-                                            + ", " + (followedWindowSize.Bottom - followedWindowSize.Top).ToString()
-                                            + " >" );
-                            #endif
-                            ignoreNextMove = false;
-                            return;
-                        }
-
-                        #if LOGGING
-                        logEvent( "% Moved < " + followedWindowSize.Left.ToString()
-                                        + ", " + followedWindowSize.Top.ToString()
-                                        + ", " + (followedWindowSize.Right - followedWindowSize.Left).ToString()
-                                        + ", " + (followedWindowSize.Bottom - followedWindowSize.Top).ToString()
-                                        + " >" );
-                        #endif
-
-                        Left = Math.Max( followedWindowSize.Left - Width, 0 );
-                        Top = followedWindowSize.Top;
-                        Height = followedWindowSize.Bottom - followedWindowSize.Top;
-
-                        oldPos = followedWindowSize;
-                        // here we handle the speedup to follow the window
-                        // to obtain a smoother move
-                        lastWindowMove = 0;
-                        if (windowFollowTimer.Interval != fastTimerInterval)
-                            windowFollowTimer.Interval = fastTimerInterval;
-                    }
-                    else if (windowFollowTimer.Interval.Milliseconds == fastTimerInterval.Milliseconds)
-                    {
-                        // when the window don't move anymore, we hope to bring
-                        // back the old slow timer.
-                        lastWindowMove += fastTimerInterval.Milliseconds;
-                        if (lastWindowMove > maxWaitDelay)
-                            windowFollowTimer.Interval = windowFollowDelay;
-                    }
-
-                    GetWindowRect(thisHandle, ref followedWindowSize);
-                    SetWindowPos( thisHandle
-                                , windowHandle
-                                , followedWindowSize.Left
-                                , followedWindowSize.Top
-                                , followedWindowSize.Right - followedWindowSize.Left
-                                , followedWindowSize.Bottom - followedWindowSize.Top
-                                , 0);
+                    case TrackingState.TrackingMove: tracking(); break;
+                    case TrackingState.WaitingMaximization: waitingMaximization(); break;
+                    case TrackingState.Maximized: maximized(); break;
                 }
             }
             catch (PlatformNotSupportedException)
