@@ -2,8 +2,8 @@
 " What Is This: Launch an helper window to display overview of edited files.
 " File: CodeOverview
 " Author: Vincent B <twinside@gmail.com>
-" Last Change: 2009 déc. 18
-" Version: 1.3.1
+" Last Change: 2009 déc. 19
+" Version: 1.4
 " Require:
 "   * set nocompatible
 "       somewhere on your .vimrc
@@ -38,6 +38,7 @@
 "  - Amjidanutpan Rama : forcing me to test the plugin
 "		         under Windows XP.
 " ChangeLog:
+"     * 1.4  : Big fix to allow maximization on Windows XP.
 "     * 1.3.1: Fixed problem of path under Windows XP
 "	       Fixed problem of overview when file has no
 "	       name
