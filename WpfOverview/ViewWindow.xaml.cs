@@ -49,7 +49,7 @@ namespace WpfOverview
         /// <summary>
         /// Size of window pointed by thisHandle.
         /// </summary>
-        RECT thisWindowSize;
+        WinSys.RECT thisWindowSize;
 
         /// <summary>
         /// Main window of the followed process.
@@ -61,14 +61,14 @@ namespace WpfOverview
         /// Previous size of windowHandle.
         /// Used to detect position and size change.
         /// </summary>
-        RECT oldPos;
+        WinSys.RECT oldPos;
 
         /// <summary>
         /// Current position of windowHandle
         /// </summary>
-        RECT followedWindowSize;
+        WinSys.RECT followedWindowSize;
 
-        WINDOWPLACEMENT windowInformation;
+        WinSys.WINDOWPLACEMENT windowInformation;
 
         /// <summary>
         /// Time of wait between the last move/resize
@@ -111,10 +111,10 @@ namespace WpfOverview
             // just to be sure to start with a long timer.
             lastWindowMove = maxWaitDelay + 1;
 
-            followedWindowSize = new RECT();
-            oldPos = new RECT();
+            followedWindowSize = new WinSys.RECT();
+            oldPos = new WinSys.RECT();
 
-            windowInformation = new WINDOWPLACEMENT();
+            windowInformation = new WinSys.WINDOWPLACEMENT();
             windowInformation.length =     3 * sizeof(int)
                                      + 2 * 2 * sizeof(int)  // POINT
                                      + 1 * 4 * sizeof(int); // RECT
@@ -123,79 +123,6 @@ namespace WpfOverview
             #endif
         }
 
-        #region Win32 pInvoke
-        const UInt32 WM_KEYDOWN = 0x0100;
-        const UInt32 WM_KEYUP = 0x0101;
-        const UInt32 SW_HIDE =             0;
-        const UInt32 SW_SHOWNORMAL =       1;
-        const UInt32 SW_NORMAL =           1;
-        const UInt32 SW_SHOWMINIMIZED =    2;
-        const UInt32 SW_SHOWMAXIMIZED =    3;
-        const UInt32 SW_MAXIMIZE =         3;
-        const UInt32 SW_SHOWNOACTIVATE =   4;
-        const UInt32 SW_SHOW =             5;
-        const UInt32 SW_MINIMIZE =         6;
-        const UInt32 SW_SHOWMINNOACTIVE =  7;
-        const UInt32 SW_SHOWNA =           8;
-        const UInt32 SW_RESTORE =          9;
-        const UInt32 SW_SHOWDEFAULT =      10;
-        const UInt32 SW_FORCEMINIMIZE =    11;
-        const UInt32 SW_MAX =              11;
-
-        [DllImport("user32.dll")]
-        static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int X, int Y, int cx, int cy, uint uFlags);
-
-        [DllImport("user32.dll", SetLastError = true)]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        static extern bool GetWindowRect(IntPtr hWnd, ref RECT lpRect);
-
-        [return: MarshalAs(UnmanagedType.Bool)]
-        [DllImport("user32.dll", SetLastError = true)]
-        static extern bool PostMessage(IntPtr hWnd, UInt32 Msg, Int32 wParam, Int32 lParam);
-
-        [DllImport("user32.dll")]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        static extern bool GetWindowPlacement(IntPtr hWnd, ref WINDOWPLACEMENT lpwndpl);
-
-        [DllImport("user32.dll")]
-        static extern bool SetWindowPlacement(IntPtr hWnd, [In] ref WINDOWPLACEMENT lpwndpl);
-
-        [DllImport("user32.dll")]
-        private static extern int ShowWindow(IntPtr hWnd, UInt32 nCmdShow);
-
-        [StructLayout(LayoutKind.Sequential)]
-        private struct WINDOWPLACEMENT
-        {
-            public UInt32 length;
-            public UInt32 flags;
-            public UInt32 showCmd;
-            public POINT ptMinPosition;
-            public POINT ptMaxPosition;
-            public RECT rcNormalPosition;
-        }
-
-        [StructLayout(LayoutKind.Sequential)]
-        private struct POINT
-        {
-            public int x;
-            public int y;
-        }
-
-        [StructLayout(LayoutKind.Sequential)]
-        private struct RECT
-        {
-            public int Left;
-            public int Top;
-            public int Right;
-            public int Bottom;
-            public static int Diff( RECT a, RECT b)
-            {
-                return Math.Abs(a.Top - b.Top) + Math.Abs(a.Bottom - b.Bottom)
-                     + Math.Abs(a.Left - a.Left) + Math.Abs(a.Right - b.Right);
-
-            }
-        }
-        #endregion
 
         /// <summary>
         /// Send a key to the followed window.
@@ -209,8 +136,8 @@ namespace WpfOverview
             // Ugly in the general case, but vim is built on windows
             // to handle this kind of things. As it's so simpler than
             // other techniques, use it.
-            PostMessage( windowHandle, WM_KEYDOWN, vk, 0 );
-            PostMessage( windowHandle, WM_KEYUP, vk, 0 );
+            WinSys.PostMessage( windowHandle, WinSys.WM_KEYDOWN, vk, 0 );
+            WinSys.PostMessage( windowHandle, WinSys.WM_KEYUP, vk, 0 );
         }
 
         /// <summary>
@@ -265,13 +192,13 @@ namespace WpfOverview
         /// </summary>
         void    waitingMaximization()
         {
-            GetWindowRect(windowHandle, ref followedWindowSize);
+            WinSys.GetWindowRect(windowHandle, ref followedWindowSize);
 
             // animation is finished.
-            if ( RECT.Diff( oldPos, followedWindowSize ) == 0 )
+            if ( WinSys.RECT.Diff( oldPos, followedWindowSize ) == 0 )
             {
                 // ok, the user just to maximize it, we're gonna give it to him
-                GetWindowRect( thisHandle, ref thisWindowSize);
+                WinSys.GetWindowRect( thisHandle, ref thisWindowSize);
 
                 int thisWidth = thisWindowSize.Right - thisWindowSize.Left;
 
@@ -279,7 +206,7 @@ namespace WpfOverview
                 Top = followedWindowSize.Top;
                 Height = followedWindowSize.Bottom - followedWindowSize.Top;
 
-                SetWindowPos( windowHandle
+                WinSys.SetWindowPos( windowHandle
                             , IntPtr.Zero
                             , followedWindowSize.Left + thisWidth
                             , followedWindowSize.Top
@@ -288,7 +215,7 @@ namespace WpfOverview
                             , 0
                             );
 
-                SetWindowPos( thisHandle
+                WinSys.SetWindowPos( thisHandle
                             , windowHandle
                             , followedWindowSize.Left
                             , followedWindowSize.Top
@@ -306,10 +233,10 @@ namespace WpfOverview
 
         void    maximized()
         {
-            GetWindowPlacement( windowHandle, ref windowInformation);
+            WinSys.GetWindowPlacement( windowHandle, ref windowInformation);
 
-            if ( (windowInformation.flags & SW_SHOWMAXIMIZED) == 0
-              && (windowInformation.flags & SW_MAXIMIZE) == 0)
+            if ( (windowInformation.flags & WinSys.SW_SHOWMAXIMIZED) == 0
+              && (windowInformation.flags & WinSys.SW_MAXIMIZE) == 0)
             {
                 currentState = TrackingState.TrackingMove;
             }
@@ -317,24 +244,19 @@ namespace WpfOverview
 
         void    tracking()
         {
-            GetWindowRect(windowHandle, ref followedWindowSize);
-            GetWindowPlacement( windowHandle, ref windowInformation);
+            WinSys.GetWindowRect(windowHandle, ref followedWindowSize);
+            WinSys.GetWindowPlacement( windowHandle, ref windowInformation);
 
             // if the window has been maximized
-            if ( (windowInformation.flags & SW_SHOWMAXIMIZED) != 0
-              || (windowInformation.flags & SW_MAXIMIZE) != 0)
+            if ( (windowInformation.flags & WinSys.SW_SHOWMAXIMIZED) != 0
+              || (windowInformation.flags & WinSys.SW_MAXIMIZE) != 0)
             {
                 currentState = TrackingState.WaitingMaximization;
                 windowFollowTimer.Interval = fastTimerInterval;
             }
             else
             {
-                int difference = Math.Abs(oldPos.Bottom - followedWindowSize.Bottom)
-                               + Math.Abs(oldPos.Top - followedWindowSize.Top)
-                               + Math.Abs(oldPos.Left - followedWindowSize.Left)
-                               + Math.Abs(oldPos.Right - followedWindowSize.Right);
-
-                if ( difference > 0 )
+                if ( WinSys.RECT.Diff( oldPos, followedWindowSize ) > 0 )
                 {
                     #if LOGGING
                     logEvent( "% Moved < " + followedWindowSize.Left.ToString()
@@ -364,8 +286,8 @@ namespace WpfOverview
                         windowFollowTimer.Interval = windowFollowDelay;
                 }
 
-                GetWindowRect(thisHandle, ref followedWindowSize);
-                SetWindowPos( thisHandle
+                WinSys.GetWindowRect(thisHandle, ref followedWindowSize);
+                WinSys.SetWindowPos( thisHandle
                             , windowHandle
                             , followedWindowSize.Left
                             , followedWindowSize.Top
