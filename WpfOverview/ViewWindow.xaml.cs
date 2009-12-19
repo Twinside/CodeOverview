@@ -99,14 +99,6 @@ namespace WpfOverview
         /// </summary>
         int lastWindowMove;
 
-        /// <summary>
-        /// In order to be able to provide a good maximisation experience,
-        /// we track real and return to normal maximization (when double-
-        /// clicking the title bar).
-        /// </summary>
-        bool previouslyMaximized = false;
-        bool ignoreNextMove = false;
-
         public ViewWindow()
         {
             InitializeComponent();
@@ -266,6 +258,11 @@ namespace WpfOverview
 
         TrackingState currentState;
 
+        /// <summary>
+        /// In this method, we wait till the window has finished it's animation
+        /// of maximization to tackle ourselves nearby, without changing the
+        /// maximization state.
+        /// </summary>
         void    waitingMaximization()
         {
             GetWindowRect(windowHandle, ref followedWindowSize);
@@ -332,8 +329,6 @@ namespace WpfOverview
             }
             else
             {
-                previouslyMaximized = false;
-
                 int difference = Math.Abs(oldPos.Bottom - followedWindowSize.Bottom)
                                + Math.Abs(oldPos.Top - followedWindowSize.Top)
                                + Math.Abs(oldPos.Left - followedWindowSize.Left)
@@ -341,20 +336,6 @@ namespace WpfOverview
 
                 if ( difference > 0 )
                 {
-                    // To avoid problem with maximization under windows XP...
-                    if (ignoreNextMove)
-                    {
-                        #if LOGGING
-                        logEvent( "# Ignored Moved < " + followedWindowSize.Left.ToString()
-                                        + ", " + followedWindowSize.Top.ToString()
-                                        + ", " + (followedWindowSize.Right - followedWindowSize.Left).ToString()
-                                        + ", " + (followedWindowSize.Bottom - followedWindowSize.Top).ToString()
-                                        + " >" );
-                        #endif
-                        ignoreNextMove = false;
-                        return;
-                    }
-
                     #if LOGGING
                     logEvent( "% Moved < " + followedWindowSize.Left.ToString()
                                     + ", " + followedWindowSize.Top.ToString()
@@ -537,11 +518,17 @@ namespace WpfOverview
                 try { line = reader.ReadLine(); }
                 catch (IOException)
                 {   /* can happen, not a problem in this case. */
+                    #if LOGGING
+                        logEvent("|-> IOException while reading wake file");
+                    #endif
                     return;
                 }
                 catch (ArgumentOutOfRangeException)
                 { /* we're searching for a PID and a path, nothing big
                    * Ignore if to big */
+                    #if LOGGING
+                        logEvent("|-> Argument out of range, while reading wake file");
+                    #endif
                     Application.Current.Shutdown();
                 }
 
@@ -565,6 +552,9 @@ namespace WpfOverview
                         }
                         catch (System.Exception)
                         {   /* don't care about parsing errors for this one */
+                        #if LOGGING
+                            logEvent("|-> Exception while parsing INT");
+                        #endif
                             ViewRectTop = 0.0;
                             ViewRectHeight = 0.0;
                         }
@@ -586,8 +576,8 @@ namespace WpfOverview
                         }
                         catch (UriFormatException)
                         {
-                        #if DEBUG
-                            MessageBox.Show(line);
+                        #if LOGGING
+                            logEvent("|-> UriFormatException");
                         #endif
                             /* Bad image... putting empty image instead */
                             pictureViewer.Source = null;
