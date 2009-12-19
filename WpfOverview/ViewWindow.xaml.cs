@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Text;
 using System.Windows;
 using System.Windows.Controls;
@@ -111,6 +110,7 @@ namespace WpfOverview
         /// clicking the title bar).
         /// </summary>
         bool previouslyMaximized = false;
+        bool ignoreNextMove = false;
 
         public ViewWindow()
         {
@@ -131,6 +131,9 @@ namespace WpfOverview
             windowInformation.length =     3 * sizeof(int)
                                      + 2 * 2 * sizeof(int)  // POINT
                                      + 1 * 4 * sizeof(int); // RECT
+            #if LOGGING
+            logEvent( "= Init : " + Environment.OSVersion.Version.Major.ToString() );
+            #endif
         }
 
         #region Win32 pInvoke
@@ -276,16 +279,36 @@ namespace WpfOverview
                 if ( (windowInformation.flags & SW_SHOWMAXIMIZED) != 0
                   || (windowInformation.flags & SW_MAXIMIZE) != 0)
                 {
+
+                    #if LOGGING
+                    logEvent( "! Maximized < " + followedWindowSize.Left.ToString()
+                                        + ", " + followedWindowSize.Top.ToString()
+                                        + ", " + (followedWindowSize.Right - followedWindowSize.Left).ToString()
+                                        + ", " + (followedWindowSize.Bottom - followedWindowSize.Top).ToString()
+                                        + " >" );
+                    logEvent("? normal : <" + windowInformation.rcNormalPosition.Left.ToString()
+                                        + ", " + windowInformation.rcNormalPosition.Top.ToString()
+                                        + ", " + (windowInformation.rcNormalPosition.Right - windowInformation.rcNormalPosition.Left).ToString()
+                                        + ", " + (windowInformation.rcNormalPosition.Bottom - windowInformation.rcNormalPosition.Top).ToString()
+                                        + " >" );
+                    logEvent("? max size : < " + windowInformation.ptMaxPosition.x.ToString()
+                                          + ", " + windowInformation.ptMaxPosition.y.ToString()
+                                           + " > < " + windowInformation.ptMinPosition.x.ToString()
+                                           + ", " + windowInformation.ptMinPosition.y.ToString()
+                                           + " >");
+                    #endif
+
+                    ignoreNextMove = true;
+
                     // if the window has been previously maximized, the user want to 
                     // get back the original window size.
                     if (previouslyMaximized)
                     {
                         windowInformation.rcNormalPosition = unmaximizedSize;
-                        SetWindowPlacement(windowHandle, ref windowInformation);
-                        ShowWindow(windowHandle, SW_RESTORE);
+                        //SetWindowPlacement(windowHandle, ref windowInformation);
+                        //ShowWindow(windowHandle, SW_RESTORE);
 
                         GetWindowRect( thisHandle, ref thisWindowSize);
-
                         SetWindowPos( thisHandle
                                     , windowHandle
                                     , unmaximizedSize.Left - (thisWindowSize.Right - thisWindowSize.Left)
@@ -310,8 +333,29 @@ namespace WpfOverview
                         // Here, we're going to hack. As the window is maximized, it's
                         // size should be the size of the screen where it's maximized.
                         // So take window size as screen size.
-                        SetWindowPlacement(windowHandle, ref windowInformation);
-                        ShowWindow(windowHandle, SW_RESTORE);
+                        //SetWindowPlacement(windowHandle, ref windowInformation);
+                        //ShowWindow(windowHandle, SW_RESTORE);
+
+                        // Windows XP fix :
+                        // maximization doesn't work well under Windows XP (why?)
+                        /*
+                        GetWindowRect( windowHandle, ref followedWindowSize );
+                        if ( followedWindowSize.Left != windowInformation.rcNormalPosition.Left
+                            || followedWindowSize.Top != windowInformation.rcNormalPosition.Right
+                            || followedWindowSize.Bottom != windowInformation.rcNormalPosition.Bottom
+                            || followedWindowSize.Right != windowInformation.rcNormalPosition.Right)
+                        {
+                            SetWindowPos( windowHandle
+                                        , IntPtr.Zero
+                                        , windowInformation.rcNormalPosition.Left
+                                        , windowInformation.rcNormalPosition.Top
+                                        , windowInformation.rcNormalPosition.Right - windowInformation.rcNormalPosition.Left
+                                        , windowInformation.rcNormalPosition.Bottom - windowInformation.rcNormalPosition.Top
+                                        , 0 );
+                        }
+                        //*/
+
+
 
                         SetWindowPos( thisHandle
                                     , windowHandle
@@ -334,6 +378,28 @@ namespace WpfOverview
 
                     if ( difference > 0 )
                     {
+                        // To avoid problem with maximization under windows XP...
+                        if (ignoreNextMove)
+                        {
+                            #if LOGGING
+                            logEvent( "# Ignored Moved < " + followedWindowSize.Left.ToString()
+                                            + ", " + followedWindowSize.Top.ToString()
+                                            + ", " + (followedWindowSize.Right - followedWindowSize.Left).ToString()
+                                            + ", " + (followedWindowSize.Bottom - followedWindowSize.Top).ToString()
+                                            + " >" );
+                            #endif
+                            ignoreNextMove = false;
+                            return;
+                        }
+
+                        #if LOGGING
+                        logEvent( "% Moved < " + followedWindowSize.Left.ToString()
+                                        + ", " + followedWindowSize.Top.ToString()
+                                        + ", " + (followedWindowSize.Right - followedWindowSize.Left).ToString()
+                                        + ", " + (followedWindowSize.Bottom - followedWindowSize.Top).ToString()
+                                        + " >" );
+                        #endif
+
                         Left = Math.Max( followedWindowSize.Left - Width, 0 );
                         Top = followedWindowSize.Top;
                         Height = followedWindowSize.Bottom - followedWindowSize.Top;
@@ -460,6 +526,13 @@ namespace WpfOverview
         }
         #endregion
 
+        #if LOGGING
+        private void logEvent( string msg )
+        {
+            Console.WriteLine(msg);
+        }
+        #endif 
+
         /// <summary>
         /// This function is called when the file containing
         /// path and view info is updated.
@@ -467,6 +540,10 @@ namespace WpfOverview
         /// <param name="filename">unused.</param>
         private void onFileChange(string filename)
         {
+            #if LOGGING
+            logEvent( "* Tracked file Change" );         
+            #endif
+
             using (FileStream fs = File.OpenRead(filename))
             using (TextReader reader = new StreamReader(fs))
             {
@@ -482,6 +559,10 @@ namespace WpfOverview
                    * Ignore if to big */
                     Application.Current.Shutdown();
                 }
+
+                #if LOGGING
+                logEvent( "- Loading : " + line );         
+                #endif
 
                 switch (line)
                 {
