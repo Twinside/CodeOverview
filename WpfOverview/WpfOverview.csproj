@@ -129,7 +129,7 @@
   -->
   <PropertyGroup>
     <PostBuildEvent>copy $(TargetPath) $(SolutionDir)
-copy $(TargetPath) C:\Users\Vince\vimfiles\plugin\$(TargetName).exe
+
 </PostBuildEvent>
   </PropertyGroup>
 </Project>
