@@ -16,6 +16,7 @@ using System.Runtime.InteropServices;
 using System.Diagnostics;
 using System.Windows.Interop;
 using System.ComponentModel;
+using System.Reflection;
 
 namespace WpfOverview
 {
@@ -494,14 +495,25 @@ namespace WpfOverview
                             newOverview.UriSource = new Uri(file);
                             newOverview.EndInit();
 
+                            newOverview.Freeze();
+
                             pictureViewer.Source = newOverview;
                         }
                         catch (UriFormatException)
                         {
-                        #if LOGGING
+#if LOGGING
                             logEvent("|-> UriFormatException");
-                        #endif
+#endif
                             /* Bad image... putting empty image instead */
+                            pictureViewer.Source = null;
+                        }
+                        catch (Exception)
+                        {   /* It's WPF nasty way to tell us that
+                             * the file is broken...
+                             * normally a TargetInvocationException but
+                             * it's not caught in a specific catch for a
+                             * reason that is beyond me.
+                             */
                             pictureViewer.Source = null;
                         }
                         InvalidateVisual();
