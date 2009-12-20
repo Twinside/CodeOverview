@@ -143,37 +143,50 @@ stringParser _ _ _ _ = Right Nothing
 
 monoLineComment :: CodeDef -> ColorDef -> Parser
 monoLineComment cdef colors toMatch 
-  | initial `isPrefixOf` toMatch = Right $ Just (map (const color) toMatch, "")
+  | initial `isPrefixOf` toMatch = Right $ Just (concat $ map colorer toMatch, "")
   | otherwise = Right Nothing
     where color = commentColor colors
+          eColor = emptyColor colors
           (Just initial) = lineComm cdef
+
+          colorer ' ' = [eColor]
+          colorer '\t' = replicate (tabSpace cdef) eColor
+          colorer _ = [color]
 
 multiLineComment :: CodeDef -> ColorDef -> Parser
 multiLineComment cdef colors toMatch
-  | initial `isPrefixOf` toMatch = multiParse initSize 1 $ drop initSize toMatch
+  | initial `isPrefixOf` toMatch = multiParse (replicate initSize color ++) 1
+                                 $ drop initSize toMatch
   | otherwise = Right Nothing
     where color = commentColor colors
+          eColor = emptyColor colors
           Just initial = multiLineCommBeg cdef
           initSize = length initial
 
           Just end = multiLineCommEnd cdef
           endSize = length end
 
-          multiParse :: Int -> Int -> Parser
+          multiParse :: ([ViewColor] -> [ViewColor]) -> Int -> Parser
           multiParse acc level [] =
-                Left $ NextParse (replicate acc color, multiParse 0 level)
+                Left $ NextParse (acc [], multiParse id level)
+
+          multiParse acc level (' ':xs) =
+              multiParse (acc . (eColor:)) level xs
+          multiParse acc level ('\t':xs) =
+              multiParse (acc . (replicate (tabSpace cdef) eColor ++)) level xs
 
           multiParse acc level x@(_:xs)
             | initial `isPrefixOf` x =
-                multiParse (acc + initSize) (level + 1) $ drop initSize x
+                multiParse (acc . (replicate initSize color++)) (level + 1)
+                           $ drop initSize x
 
             | end `isPrefixOf` x && level - 1 == 0 =
-                Right $ Just (replicate (acc + endSize) color, drop endSize x)
+                Right $ Just (acc $ replicate endSize color, drop endSize x)
 
             | end `isPrefixOf` x =
-                multiParse (acc + endSize) (level - 1) $ drop endSize x
+                multiParse (acc . (replicate endSize color++)) (level - 1) $ drop endSize x
                 
-            | otherwise = multiParse (acc+1) level xs
+            | otherwise = multiParse (acc . (color:)) level xs
 
 eatTillSpace :: (Char -> Int -> Bool) -> String -> (String, String)
 eatTillSpace f = eater 0
@@ -210,9 +223,9 @@ whenAdd yesno a = if yesno then (a:) else id
 parserList :: [String] -> CodeDef -> ColorDef -> [Parser]    
 parserList highlightDef codeDef colorDef =
       whenAdd (isJust $ lineComm codeDef) (monoLineComment codeDef colorDef)
+    . whenAdd (isJust $ strParser codeDef) (fromJust (strParser codeDef) colorDef)
     . whenAdd (multiLineCommBeg codeDef /= Nothing
               && multiLineCommEnd codeDef /= Nothing) (multiLineComment codeDef colorDef)
-    . whenAdd (isJust $ strParser codeDef) (fromJust (strParser codeDef) colorDef)
     $ [ globalParse highlightDef codeDef colorDef
       , charEater codeDef colorDef
       ]

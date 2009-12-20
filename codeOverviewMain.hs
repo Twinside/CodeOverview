@@ -153,7 +153,8 @@ main = do
                 do when (overVerbose options)
                         (putStrLn $ "Processing " ++ file)
                    pixels <- performTransformation options file
-                   let outPath = overOut options file
-                   savePngImage options outPath pixels
+                   when (not $ null pixels)
+                        (do let outPath = overOut options file
+                            savePngImage options outPath pixels)
                    ) $ overFiles options
 
