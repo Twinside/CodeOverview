@@ -471,20 +471,6 @@ namespace WpfOverview
                             string[] infos = line.Split('?');
                             string file = infos[infos.Length - 1];
 
-                            try
-                            {
-                                ViewRectTop = int.Parse(infos[0]);
-                                ViewRectHeight = int.Parse(infos[1]) - ViewRectTop;
-                            }
-                            catch (System.Exception)
-                            {   /* don't care about parsing errors for this one */
-#if LOGGING
-                            logEvent("|-> Exception while parsing INT");
-#endif
-                                ViewRectTop = 0.0;
-                                ViewRectHeight = 0.0;
-                            }
-
                             if (!File.Exists(file))
                                 return;
 
@@ -523,6 +509,23 @@ namespace WpfOverview
                              */
                                 pictureViewer.Source = null;
                             }
+
+                            try
+                            {
+                                double realTop = ((double)int.Parse(infos[0])) / pictureViewer.Source.Height * pictureViewer.ActualHeight;
+                                double realBottom = ((double)int.Parse(infos[1])) / pictureViewer.Source.Height * pictureViewer.ActualHeight;
+                                ViewRectTop = realTop;
+                                ViewRectHeight = realBottom - realTop;
+                            }
+                            catch (System.Exception)
+                            {   /* don't care about parsing errors for this one */
+#if LOGGING
+                            logEvent("|-> Exception while parsing INT");
+#endif
+                                ViewRectTop = 0.0;
+                                ViewRectHeight = 0.0;
+                            }
+
                             InvalidateVisual();
                             break;
 
@@ -547,7 +550,8 @@ namespace WpfOverview
                             , Key.NumPad8, Key.NumPad9
                             };
 
-            string  heightI = ((int)pos.Y + 1).ToString();
+            double realHeight = pos.Y / pictureViewer.ActualHeight * pictureViewer.Source.Height;
+            string  heightI = ((int)realHeight + 1).ToString();
 
             foreach (char c in heightI)
                 SendKeyToFollowedProcess( numbers[(int)c - (int)'0'] );
