@@ -77,6 +77,7 @@ extensionAssociation :: [(String, (String, CodeDef))]
 extensionAssociation =
     [ (".hs"    , ("haskell"      , haskellCodeDef))
     , (".c"     , ("C"            , cCodeDef))
+    , (".h"     , ("C/C++ Header" , cCodeDef))
     , (".C"     , ("C++"          , cCodeDef))
     , (".cs"    , ("C#"           , cCodeDef))
     , (".cpp"   , ("C++"          , cCodeDef))
