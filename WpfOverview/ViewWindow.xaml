@@ -8,7 +8,7 @@
         <Image Name="pictureViewer" Stretch="None" MouseLeftButtonUp="pictureViewer_MouseLeftButtonUp"
                                     HorizontalAlignment="Left" VerticalAlignment="Top"
                                     MouseMove="pictureViewer_MouseMove"
-                                    Grid.Row="0" Grid.Column="0" />
+                                    Grid.Row="0" Grid.Column="0" StretchDirection="DownOnly" />
         <Rectangle Name="viewRect" Fill="Blue" Opacity="0.3"
                    Grid.Row="0" Grid.Column="0"
                    IsHitTestVisible="False"

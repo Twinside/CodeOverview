@@ -433,94 +433,103 @@ namespace WpfOverview
             logEvent( "* Tracked file Change" );         
             #endif
 
-            using (FileStream fs = File.OpenRead(filename))
-            using (TextReader reader = new StreamReader(fs))
+            try
             {
-                string line = "";
-
-                try { line = reader.ReadLine(); }
-                catch (IOException)
-                {   /* can happen, not a problem in this case. */
-                    #if LOGGING
-                        logEvent("|-> IOException while reading wake file");
-                    #endif
-                    return;
-                }
-                catch (ArgumentOutOfRangeException)
-                { /* we're searching for a PID and a path, nothing big
-                   * Ignore if to big */
-                    #if LOGGING
-                        logEvent("|-> Argument out of range, while reading wake file");
-                    #endif
-                    Application.Current.Shutdown();
-                }
-
-                #if LOGGING
-                logEvent( "- Loading : " + line );         
-                #endif
-
-                switch (line)
+                using (FileStream fs = File.OpenRead(filename))
+                using (TextReader reader = new StreamReader(fs))
                 {
-                    case "quit":
+                    string line = "";
+
+                    try { line = reader.ReadLine(); }
+                    catch (IOException)
+                    {   /* can happen, not a problem in this case. */
+#if LOGGING
+                        logEvent("|-> IOException while reading wake file");
+#endif
+                        return;
+                    }
+                    catch (ArgumentOutOfRangeException)
+                    { /* we're searching for a PID and a path, nothing big
+                   * Ignore if to big */
+#if LOGGING
+                        logEvent("|-> Argument out of range, while reading wake file");
+#endif
                         Application.Current.Shutdown();
-                        break;
+                    }
 
-                    default:
-                        string[] infos = line.Split('?');
-                        string file = infos[infos.Length - 1];
+#if LOGGING
+                logEvent( "- Loading : " + line );         
+#endif
 
-                        try {
-                            ViewRectTop = int.Parse(infos[0]);
-                            ViewRectHeight = int.Parse(infos[1]) - ViewRectTop;
-                        }
-                        catch (System.Exception)
-                        {   /* don't care about parsing errors for this one */
-                        #if LOGGING
+                    switch (line)
+                    {
+                        case "quit":
+                            Application.Current.Shutdown();
+                            break;
+
+                        default:
+                            string[] infos = line.Split('?');
+                            string file = infos[infos.Length - 1];
+
+                            try
+                            {
+                                ViewRectTop = int.Parse(infos[0]);
+                                ViewRectHeight = int.Parse(infos[1]) - ViewRectTop;
+                            }
+                            catch (System.Exception)
+                            {   /* don't care about parsing errors for this one */
+#if LOGGING
                             logEvent("|-> Exception while parsing INT");
-                        #endif
-                            ViewRectTop = 0.0;
-                            ViewRectHeight = 0.0;
-                        }
+#endif
+                                ViewRectTop = 0.0;
+                                ViewRectHeight = 0.0;
+                            }
 
-                        if (!File.Exists(file))
-                            return;
+                            if (!File.Exists(file))
+                                return;
 
-                        try
-                        {
-                            BitmapImage newOverview = new BitmapImage();
+                            try
+                            {
+                                BitmapImage newOverview = new BitmapImage();
 
-                            newOverview.BeginInit();
-                            newOverview.CreateOptions = BitmapCreateOptions.IgnoreImageCache;
-                            newOverview.CacheOption = BitmapCacheOption.OnLoad;
-                            newOverview.UriSource = new Uri(file);
-                            newOverview.EndInit();
+                                newOverview.BeginInit();
+                                newOverview.CreateOptions = BitmapCreateOptions.IgnoreImageCache;
+                                newOverview.CacheOption = BitmapCacheOption.OnLoad;
+                                newOverview.UriSource = new Uri(file);
+                                newOverview.EndInit();
 
-                            newOverview.Freeze();
+                                newOverview.Freeze();
 
-                            pictureViewer.Source = newOverview;
-                        }
-                        catch (UriFormatException)
-                        {
+                                if (newOverview.Height > this.ActualHeight)
+                                    pictureViewer.Stretch = Stretch.Fill;
+                                else
+                                    pictureViewer.Stretch = Stretch.None;
+                                pictureViewer.Source = newOverview;
+                            }
+                            catch (UriFormatException)
+                            {
 #if LOGGING
                             logEvent("|-> UriFormatException");
 #endif
-                            /* Bad image... putting empty image instead */
-                            pictureViewer.Source = null;
-                        }
-                        catch (Exception)
-                        {   /* It's WPF nasty way to tell us that
+                                /* Bad image... putting empty image instead */
+                                pictureViewer.Source = null;
+                            }
+                            catch (Exception)
+                            {   /* It's WPF nasty way to tell us that
                              * the file is broken...
                              * normally a TargetInvocationException but
                              * it's not caught in a specific catch for a
                              * reason that is beyond me.
                              */
-                            pictureViewer.Source = null;
-                        }
-                        InvalidateVisual();
-                        break;
+                                pictureViewer.Source = null;
+                            }
+                            InvalidateVisual();
+                            break;
 
+                    }
                 }
             }
+            catch (Exception) { Application.Current.Shutdown(); }
         }
 
 
