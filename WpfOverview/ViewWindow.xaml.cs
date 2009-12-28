@@ -246,10 +246,25 @@ namespace WpfOverview
         {
             WinSys.GetWindowPlacement( windowHandle, ref windowInformation);
 
+            // Ok, if we're not maximized anymore.
             if ( (windowInformation.flags & WinSys.SW_SHOWMAXIMIZED) == 0
               && (windowInformation.flags & WinSys.SW_MAXIMIZE) == 0)
             {
                 currentState = TrackingState.TrackingMove;
+            }
+            else
+            {   // we still have to handle the case
+                // when another window is front of us
+                // and vim is briggen back to foreground.
+                WinSys.GetWindowRect(thisHandle, ref thisWindowSize);
+                WinSys.SetWindowPos( thisHandle
+                            , windowHandle
+                            , thisWindowSize.Left
+                            , thisWindowSize.Top
+                            , thisWindowSize.Right - thisWindowSize.Left
+                            , thisWindowSize.Bottom - thisWindowSize.Top
+                            , 0);
+
             }
         }
 
@@ -297,13 +312,13 @@ namespace WpfOverview
                         windowFollowTimer.Interval = windowFollowDelay;
                 }
 
-                WinSys.GetWindowRect(thisHandle, ref followedWindowSize);
+                WinSys.GetWindowRect(thisHandle, ref thisWindowSize );
                 WinSys.SetWindowPos( thisHandle
                             , windowHandle
-                            , followedWindowSize.Left
-                            , followedWindowSize.Top
-                            , followedWindowSize.Right - followedWindowSize.Left
-                            , followedWindowSize.Bottom - followedWindowSize.Top
+                            , thisWindowSize.Left
+                            , thisWindowSize.Top
+                            , thisWindowSize.Right - thisWindowSize.Left
+                            , thisWindowSize.Bottom - thisWindowSize.Top
                             , 0);
             }
         }
