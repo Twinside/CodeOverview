@@ -36,12 +36,6 @@ namespace WpfOverview
         int followedPid;
 
         /// <summary>
-        /// We grab some information from the process regularly,
-        /// so we keep it here.
-        /// </summary>
-        Process followedProcess;
-
-        /// <summary>
         /// Handle of this wpf window. Usefull
         /// to make dirty tricks at the Win32 level.
         /// </summary>
@@ -131,14 +125,13 @@ namespace WpfOverview
         /// WM_KEYDOWN followed by a WM_KEYUP.
         /// </summary>
         /// <param name="k">key to send</param>
-        private void SendKeyToFollowedProcess( Key  k )
+        private void SendKeyToFollowedProcess( int k )
         {
-            int vk = KeyInterop.VirtualKeyFromKey(k);
             // Ugly in the general case, but vim is built on windows
             // to handle this kind of things. As it's so simpler than
             // other techniques, use it.
-            WinSys.PostMessage( windowHandle, WinSys.WM_KEYDOWN, vk, 0 );
-            WinSys.PostMessage( windowHandle, WinSys.WM_KEYUP, vk, 0 );
+            WinSys.PostMessage( windowHandle, WinSys.WM_KEYDOWN, k, 0 );
+            WinSys.PostMessage( windowHandle, WinSys.WM_KEYUP, k, 0 );
         }
 
         /// <summary>
@@ -232,6 +225,23 @@ namespace WpfOverview
             oldPos = followedWindowSize;
         }
 
+        void    unMaximize()
+        {
+            WinSys.GetWindowRect(windowHandle, ref followedWindowSize);
+            WinSys.GetWindowRect( thisHandle, ref thisWindowSize);
+
+            int thisWidth = thisWindowSize.Right - thisWindowSize.Left;
+
+            WinSys.SetWindowPos( windowHandle
+                        , IntPtr.Zero
+                        , followedWindowSize.Left - thisWidth
+                        , followedWindowSize.Top
+                        , followedWindowSize.Right - followedWindowSize.Left + thisWidth
+                        , followedWindowSize.Bottom - followedWindowSize.Top
+                        , 0
+                        );
+        }
+
         void    maximized()
         {
             WinSys.GetWindowPlacement( windowHandle, ref windowInformation);
@@ -306,9 +316,6 @@ namespace WpfOverview
         /// <param name="e">unused</param>
         void FollowPIDWindow(object sender, EventArgs e)
         {
-            followedProcess.Refresh();
-            // get the followed window handle
-            windowHandle = followedProcess.MainWindowHandle;
 
             try
             {
@@ -347,8 +354,12 @@ namespace WpfOverview
 
                 try
                 {
-                    followedProcess = Process.GetProcessById(followedPid);
+                    Process followedProcess = Process.GetProcessById(followedPid);
                     FollowPIDWindow(null, null);
+
+                    followedProcess.Refresh();
+                    // get the followed window handle
+                    windowHandle = followedProcess.MainWindowHandle;
 
                     if (!windowFollowTimer.IsEnabled)
                         windowFollowTimer.Start();
@@ -464,6 +475,9 @@ namespace WpfOverview
                     switch (line)
                     {
                         case "quit":
+                            // RESTORE SOMETHING
+                            if (currentState == TrackingState.Maximized)
+                                unMaximize();
                             Application.Current.Shutdown();
                             break;
 
@@ -535,6 +549,22 @@ namespace WpfOverview
             catch (Exception) { Application.Current.Shutdown(); }
         }
 
+        static int gkey = KeyInterop.VirtualKeyFromKey(Key.G);
+        static int zkey = KeyInterop.VirtualKeyFromKey(Key.Z);
+        static
+        int[] numbers = { KeyInterop.VirtualKeyFromKey( Key.NumPad0 )
+                        , KeyInterop.VirtualKeyFromKey( Key.NumPad1 )
+                        , KeyInterop.VirtualKeyFromKey( Key.NumPad2 )
+                        , KeyInterop.VirtualKeyFromKey( Key.NumPad3 )
+                        , KeyInterop.VirtualKeyFromKey( Key.NumPad4 )
+                        , KeyInterop.VirtualKeyFromKey( Key.NumPad5 )
+                        , KeyInterop.VirtualKeyFromKey( Key.NumPad6 )
+                        , KeyInterop.VirtualKeyFromKey( Key.NumPad6 )
+                        , KeyInterop.VirtualKeyFromKey( Key.NumPad7 )
+                        , KeyInterop.VirtualKeyFromKey( Key.NumPad8 )
+                        , KeyInterop.VirtualKeyFromKey( Key.NumPad9 )
+                        };
+
 
         /// <summary>
         /// Given a point in an image, we send keys to vim
@@ -544,20 +574,18 @@ namespace WpfOverview
         /// <param name="pos">Click position in the image.</param>
         private void updateVimView( Point pos )
         {
-            Key[] numbers = { Key.NumPad0, Key.NumPad1, Key.NumPad2
-                            , Key.NumPad3, Key.NumPad4, Key.NumPad5
-                            , Key.NumPad6, Key.NumPad6, Key.NumPad7
-                            , Key.NumPad8, Key.NumPad9
-                            };
-
             double realHeight = pos.Y / pictureViewer.ActualHeight * pictureViewer.Source.Height;
             string  heightI = ((int)realHeight + 1).ToString();
 
             foreach (char c in heightI)
                 SendKeyToFollowedProcess( numbers[(int)c - (int)'0'] );
 
-            SendKeyToFollowedProcess(Key.G);
-            SendKeyToFollowedProcess(Key.G);
+            SendKeyToFollowedProcess(gkey);
+            SendKeyToFollowedProcess(gkey);
+
+            // center the view in vim
+            SendKeyToFollowedProcess(zkey);
+            SendKeyToFollowedProcess(zkey);
 
             // we assume that showing width doesn't change
             // and update just the top of our rect
