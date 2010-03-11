@@ -81,6 +81,7 @@ extensionAssociation =
     , (".C"     , ("C++"          , cCodeDef))
     , (".cs"    , ("C#"           , cCodeDef))
     , (".cpp"   , ("C++"          , cCodeDef))
+    , (".cc"    , ("C++"          , cCodeDef))
     , (".java"  , ("Java"         , cCodeDef))
     , (".js"    , ("Javascript"   , cCodeDef))
     , (".ml"    , ("OCaml"        , ocamlCodeDef))
