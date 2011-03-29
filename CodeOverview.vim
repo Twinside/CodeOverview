@@ -3,7 +3,7 @@
 " File: CodeOverview
 " Author: Vincent B <twinside@gmail.com>
 " Last Change: 2010 janv. 29
-" Version: 1.7
+" Version: 1.8
 " Require:
 "   * set nocompatible
 "       somewhere on your .vimrc
@@ -28,6 +28,9 @@
 "       Refresh your current overview.
 "
 " Additional:
+"   let g:code_overview_autostart = 1
+"       To start the plugin directly at vim launch.
+"
 "   let g:codeoverview_autoupdate = 1
 "       To automaticly start automatic overview generation.
 "       Otherwise you have to manually call SnapshotFile
@@ -43,6 +46,7 @@
 "  - Amjidanutpan Rama : forcing me to test the plugin
 "		         under Windows XP.
 " ChangeLog:
+"     * 1.8  : Added option to start plugin automatically.
 "     * 1.7  : Added condition to avoid loading very huge file.
 "     * 1.6  : Handling of HUUUUUUGES file
 "     * 1.5  : Update in stabilities for binaries.
@@ -63,9 +67,7 @@ if exists("g:__CODEOVERVIEW_VIM__")
 endif
 let g:__CODEOVERVIEW_VIM__ = 1
 
-if !(has("win32") || has("win64")) || !has("gui_running")
-    " Windows only plugin
-    " only with GUI
+if !has("gui_running")
     finish
 endif
 
@@ -76,14 +78,22 @@ if v:version < 702 || (v:version == 702 && !has('patch264'))
     finish
 endif
 
-let s:tempDir = expand("$TEMP") . '\'
-
 " Some version of vim don't get globpath with additional
 " flag to avoid wildignore, so we must do it by hand
 let s:tempWildIgnore = &wildignore
 set wildignore=
-let s:friendProcess = '"' . globpath( &rtp, 'plugin/WpfOverview.exe' ) . '"'
-let s:overviewProcess = '"' . globpath( &rtp, 'plugin/codeoverview.exe' ) . '"'
+if has("win32")
+   let s:tempDir = expand("$TEMP") . '\'
+   let s:friendProcess = '"' . globpath( &rtp, 'plugin/WpfOverview.exe' ) . '"'
+   let s:overviewProcess = '"' . globpath( &rtp, 'plugin/codeoverview.exe' ) . '"'
+   let s:rmCommand = "erase "
+else
+   let s:tempDir = "/tmp/"
+   let s:friendProcess = '"' . globpath( &rtp, 'plugin/gtkOverview.py' ) . '"'
+   let s:overviewProcess = '"' . globpath( &rtp, 'plugin/codeoverview' ) . '"'
+   let s:rmCommand = "rm "
+endif
+
 execute 'set wildignore=' . s:tempWildIgnore
 
 let s:wakeFile = s:tempDir . 'overviewFile' . string(getpid()) . '.txt'
@@ -192,7 +202,7 @@ fun! s:SnapshotFile() "{{{
                       \ . '?' . s:tempFile . ' > "' . s:wakeFile . '"'
 
     if &modified
-        call writefile( [commandLine, wakeCommand, 'erase ' . filename], s:tempCommandFile )
+        call writefile( [commandLine, wakeCommand, s:rmCommand . filename], s:tempCommandFile )
     else
         call writefile( [commandLine, wakeCommand], s:tempCommandFile )
     endif
@@ -223,4 +233,8 @@ command! CodeOverviewAuto echo 'CodeOverview Friend Process not started!'
 command! SnapshotFile echo 'CodeOverview Friend Process not started!'
 command! ShowCodeOverview call s:LaunchFriendProcess()
 command! HideCodeOverview call s:StopFriendProcess()
+
+if exists("g:code_overview_autostart")
+	call s:LaunchFriendProcess()
+endif
 
