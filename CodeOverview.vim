@@ -87,18 +87,19 @@ if has("win32")
    let s:friendProcess = '"' . globpath( &rtp, 'plugin/WpfOverview.exe' ) . '"'
    let s:overviewProcess = '"' . globpath( &rtp, 'plugin/codeoverview.exe' ) . '"'
    let s:rmCommand = "erase "
+   let s:tempCommandFile = s:tempDir . 'command.cmd'
 else
    let s:tempDir = "/tmp/"
    let s:friendProcess = '"' . globpath( &rtp, 'plugin/gtkOverview.py' ) . '"'
    let s:overviewProcess = '"' . globpath( &rtp, 'plugin/codeoverview' ) . '"'
    let s:rmCommand = "rm "
+   let s:tempCommandFile = s:tempDir . 'command.sh'
 endif
 
 execute 'set wildignore=' . s:tempWildIgnore
 
 let s:wakeFile = s:tempDir . 'overviewFile' . string(getpid()) . '.txt'
 let s:tempFile = s:tempDir . 'previewer' . string(getpid()) . '.png'
-let s:tempCommandFile = s:tempDir . 'command.cmd'
 let s:friendProcessStarted = 0
 
 if !exists("g:codeOverviewMaxLineCount")
@@ -142,8 +143,13 @@ fun! s:LaunchFriendProcess() "{{{
         return
     endif
 
-    call system('cmd /s /c "start "CodeOverview Launcher" /b '
-             \ . s:friendProcess . ' ' . string( getpid() ) . '"')
+    if has("win32")
+        call system('cmd /s /c "start "CodeOverview Launcher" /b '
+                \ . s:friendProcess . ' ' . string( getpid() ) . '"')
+    else
+        call system('sh '. s:friendProcess . ' ' . string( getpid() ) . '" &')
+    endif
+
     let s:friendProcessStarted = 1
 
     if exists("g:codeoverview_autoupdate")
@@ -207,7 +213,11 @@ fun! s:SnapshotFile() "{{{
         call writefile( [commandLine, wakeCommand], s:tempCommandFile )
     endif
 
-    call system( '"' . s:tempCommandFile . '"' )
+    if has("win32")
+        call system( '"' . s:tempCommandFile . '"' )
+    else 
+    	call system( 'sh "' . s:tempCommandFile . '" &' )
+    endif
 endfunction "}}}
 
 fun! s:PutCodeOverviewHook() "{{{
