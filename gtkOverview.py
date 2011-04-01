@@ -3,8 +3,8 @@
 import pygtk
 pygtk.require('2.0')
 import gtk
-#import gio
-import vim
+import gio
+import sys
 
 class OverViewImage:
     # when invoked (via signal delete_event), terminates the application.
@@ -22,10 +22,10 @@ class OverViewImage:
         realBottom = self.ending / height * actualHeight;
         
     def info_changed(self, monitor, fileObj, other_file = None, event_type = None, data = None):
+        print("Detected Changes!")
         wakeFile = open(self.watchedFilename,"r")
         line = wakeFile.read()
         wakeFile.close()
-
 
         if line[-1] == '\n':
             line = line[0:-1]
@@ -37,6 +37,7 @@ class OverViewImage:
         [begin, end, imageFile] = line.split("?")
         self.beginning = int(begin)
         self.ending = int(begin)
+        self.codeImage.set_from_file(imageFile)
         return
 
     def __init__(self, filename):
@@ -49,25 +50,23 @@ class OverViewImage:
         # the application
         self.window = gtk.Window(gtk.WINDOW_TOPLEVEL)
         self.window.connect("delete_event", self.close_application)
-        #window.set_border_width(10)
+        self.window.set_border_width(10)
         self.window.show()
 
         self.codeImage = gtk.Image()
-        self.codeImage.set_from_file("CodeOverview.png")
         self.codeImage.show()
 
         # a button to contain the image widget
-        button = gtk.Button()
-        button.add(image)
-        button.show()
-        window.add(button)
-        button.connect("clicked", self.button_clicked)
-
-def main():
-    gtk.main()
-    return 0
+        #self.button = gtk.Button()
+        #self.button.add(self.codeImage)
+        #self.button.show()
+        #self.window.add(self.button)
+        #self.button.connect("clicked", self.button_clicked)
+        self.window.add(self.codeImage)
 
 if __name__ == "__main__":
-    OverViewImage("testf")
-    main()
+    watchedFilename = "/tmp/overviewFile" + sys.argv[1] + '.txt'
+    print(watchedFilename)
+    OverViewImage(watchedFilename)
+    gtk.main()
 

@@ -3,7 +3,7 @@
 " File: CodeOverview
 " Author: Vincent B <twinside@gmail.com>
 " Last Change: 2010 janv. 29
-" Version: 1.8
+" Version: 2.0
 " Require:
 "   * set nocompatible
 "       somewhere on your .vimrc
@@ -46,6 +46,7 @@
 "  - Amjidanutpan Rama : forcing me to test the plugin
 "		         under Windows XP.
 " ChangeLog:
+"     * 2.0  : Adding linoux Versioun
 "     * 1.8  : Added option to start plugin automatically.
 "     * 1.7  : Added condition to avoid loading very huge file.
 "     * 1.6  : Handling of HUUUUUUGES file
@@ -98,8 +99,9 @@ endif
 
 execute 'set wildignore=' . s:tempWildIgnore
 
-let s:wakeFile = s:tempDir . 'overviewFile' . string(getpid()) . '.txt'
-let s:tempFile = s:tempDir . 'previewer' . string(getpid()) . '.png'
+let s:initPid = string(getpid())
+let s:wakeFile = s:tempDir . 'overviewFile' . s:initPid . '.txt'
+let s:tempFile = s:tempDir . 'previewer' . s:initPid . '.png'
 let s:friendProcessStarted = 0
 
 if !exists("g:codeOverviewMaxLineCount")
@@ -145,9 +147,10 @@ fun! s:LaunchFriendProcess() "{{{
 
     if has("win32")
         call system('cmd /s /c "start "CodeOverview Launcher" /b '
-                \ . s:friendProcess . ' ' . string( getpid() ) . '"')
+                \ . s:friendProcess . ' ' . s:initPid . '"')
     else
-        call system('sh '. s:friendProcess . ' ' . string( getpid() ) . '" &')
+        let cmd = '!'. s:friendProcess . ' ' . s:initPid . ' &'
+        exec cmd
     endif
 
     let s:friendProcessStarted = 1
@@ -178,13 +181,11 @@ fun! s:SnapshotFile() "{{{
         let lines = getline( 0, line('$') )
         let filename = s:tempDir . 'tempVimFile' . expand( '%:t' )
         call writefile(lines, filename)
-	let filename = '"' . filename . '"'
+    let filename = '"' . filename . '"'
         let lines = [] " Just to let the garbage collector do it's job.
     else
         let filename = '"' . expand( '%' ) . '"'
     endif
-
-    let pid = getpid()
 
     let lastVisibleLine = line('w$')
     let winInfo = winsaveview()
@@ -203,9 +204,15 @@ fun! s:SnapshotFile() "{{{
                              \ . highlighted . " " . filename
 
     " Make an non-blocking start
-    let wakeCommand = 'echo ' . string(winInfo.topline) 
-                      \ . '?' . string(lastVisibleLine)
-                      \ . '?' . s:tempFile . ' > "' . s:wakeFile . '"'
+    if has("win32")
+        let wakeCommand = 'echo ' . string(winInfo.topline) 
+                        \ . '?' . string(lastVisibleLine)
+                        \ . '?' . s:tempFile . ' > "' . s:wakeFile . '"'
+    else
+        let wakeCommand = 'echo "' . string(winInfo.topline) 
+                        \ . '?' . string(lastVisibleLine)
+                        \ . '?' . s:tempFile . '" > "' . s:wakeFile . '"'
+    endif
 
     if &modified
         call writefile( [commandLine, wakeCommand, s:rmCommand . filename], s:tempCommandFile )
