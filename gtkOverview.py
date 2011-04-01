@@ -21,6 +21,20 @@ class OverViewImage:
         realTop = self.beginning / height * actualHeight;
         realBottom = self.ending / height * actualHeight;
         
+    def updateImage(self, newFilename):
+        pixbuf = gtk.gdk.pixbuf_new_from_file(newFilename)
+
+        imageWidth = pixbuf.get_width()
+        imageHeight = pixbuf.get_height()
+
+        (width, height) = self.window.get_size()
+
+        width = min( imageWidth, width )
+        height = min( imageHeight, height )
+
+        scaledPixbuf = pixbuf.scale_simple( width, height, gtk.gdk.INTERP_BILINEAR)
+        self.codeImage.set_from_pixbuf(scaledPixbuf)
+
     def info_changed(self, monitor, fileObj, other_file = None, event_type = None, data = None):
         print("Detected Changes!")
         wakeFile = open(self.watchedFilename,"r")
@@ -37,7 +51,9 @@ class OverViewImage:
         [begin, end, imageFile] = line.split("?")
         self.beginning = int(begin)
         self.ending = int(begin)
-        self.codeImage.set_from_file(imageFile)
+        self.updateImage(imageFile)
+
+    def windowResized(self):
         return
 
     def __init__(self, filename):
@@ -51,7 +67,10 @@ class OverViewImage:
         self.window = gtk.Window(gtk.WINDOW_TOPLEVEL)
         self.window.connect("delete_event", self.close_application)
         self.window.set_border_width(10)
+        self.window.resize(150, 500)
         self.window.show()
+        self.window.connect()
+
 
         self.codeImage = gtk.Image()
         self.codeImage.show()
