@@ -79,34 +79,54 @@ if v:version < 702 || (v:version == 702 && !has('patch264'))
     finish
 endif
 
-" Some version of vim don't get globpath with additional
-" flag to avoid wildignore, so we must do it by hand
-let s:tempWildIgnore = &wildignore
-set wildignore=
-if has("win32")
-   let s:tempDir = expand("$TEMP") . '\'
-   let s:friendProcess = '"' . globpath( &rtp, 'plugin/WpfOverview.exe' ) . '"'
-   let s:overviewProcess = '"' . globpath( &rtp, 'plugin/codeoverview.exe' ) . '"'
-   let s:rmCommand = "erase "
-   let s:tempCommandFile = s:tempDir . 'command.cmd'
-else
-   let s:tempDir = "/tmp/"
-   let s:friendProcess = '"' . globpath( &rtp, 'plugin/gtkOverview.py' ) . '"'
-   let s:overviewProcess = '"' . globpath( &rtp, 'plugin/codeoverview' ) . '"'
-   let s:rmCommand = "rm "
-   let s:tempCommandFile = s:tempDir . 'command.sh'
-endif
+let s:preparedParameters = 0
+fun! s:PrepareParameters() "{{{
+	if s:preparedParameters
+        return
+    endif
 
-execute 'set wildignore=' . s:tempWildIgnore
+    " Some version of vim don't get globpath with additional
+    " flag to avoid wildignore, so we must do it by hand
+    let s:tempWildIgnore = &wildignore
+    set wildignore=
 
-let s:initPid = string(getpid())
-let s:wakeFile = s:tempDir . 'overviewFile' . s:initPid . '.txt'
-let s:tempFile = s:tempDir . 'previewer' . s:initPid . '.png'
+    if has("win32")
+       let s:tempDir = expand("$TEMP") . '\'
+       let s:rmCommand = "erase "
+       let s:tempCommandFile = s:tempDir . 'command.cmd'
+    else
+       let s:tempDir = "/tmp/"
+       let s:rmCommand = "rm "
+       let s:tempCommandFile = s:tempDir . 'command.sh'
+    endif
+
+    let s:initPid = string(getpid())
+    let s:wakeFile = s:tempDir . 'overviewFile' . s:initPid . '.txt'
+    let s:tempFile = s:tempDir . 'previewer' . s:initPid . '.png'
+
+    echo s:initPid
+    execute 'set wildignore=' . s:tempWildIgnore
+
+    let s:preparedParameters = 1
+endfunction "}}}
+
+fun! s:InitialInit() "{{{
+    if has("win32")
+       let s:friendProcess = '"' . globpath( &rtp, 'plugin/WpfOverview.exe' ) . '"'
+       let s:overviewProcess = '"' . globpath( &rtp, 'plugin/codeoverview.exe' ) . '"'
+    else
+       let s:friendProcess = '"' . globpath( &rtp, 'plugin/gtkOverview.py' ) . '"'
+       let s:overviewProcess = '"' . globpath( &rtp, 'plugin/codeoverview' ) . '"'
+    endif
+endfunction "}}}
+
 let s:friendProcessStarted = 0
 
 if !exists("g:codeOverviewMaxLineCount")
     let g:codeOverviewMaxLineCount = 10000
 endif
+
+call s:InitialInit()
 
 if s:friendProcess == '' || s:overviewProcess == ''
     echo "Can't find friend executables, aborting CodeOverview load"
@@ -144,6 +164,8 @@ fun! s:LaunchFriendProcess() "{{{
         echo 'Friend process already started'
         return
     endif
+
+    call s:PrepareParameters()
 
     if has("win32")
         call system('cmd /s /c "start "CodeOverview Launcher" /b '

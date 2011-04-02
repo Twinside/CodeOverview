@@ -5,6 +5,7 @@ pygtk.require('2.0')
 import gtk
 import gio
 import sys
+import cairo
 
 class OverViewImage:
     # when invoked (via signal delete_event), terminates the application.
@@ -16,10 +17,10 @@ class OverViewImage:
     def button_clicked(self, widget, data=None):
         print "button %s clicked" % data
 
-    def name( picture ):
-        (width, height) = picture.get_image_size()
-        realTop = self.beginning / height * actualHeight;
-        realBottom = self.ending / height * actualHeight;
+    def updateViewSizeInformation(self, picture):
+        (width, height) = (picture.get_width(), picture.get_height())
+        self.realTop = float(self.beginning) / height * self.actualHeight;
+        self.realBottom = float(self.ending) / height * self.actualHeight;
         
     def updateImage(self, newFilename):
         pixbuf = gtk.gdk.pixbuf_new_from_file(newFilename)
@@ -32,8 +33,12 @@ class OverViewImage:
         width = min( imageWidth, width )
         height = min( imageHeight, height )
 
-        scaledPixbuf = pixbuf.scale_simple( width, height, gtk.gdk.INTERP_BILINEAR)
-        self.codeImage.set_from_pixbuf(scaledPixbuf)
+        self.actualHeight = height
+        self.updateViewSizeInformation(pixbuf)
+
+        self.codePixbuf = pixbuf
+        self.scaledPixbuf = pixbuf.scale_simple( width, height, gtk.gdk.INTERP_BILINEAR)
+        self.drawArea.queue_draw()
 
     def info_changed(self, monitor, fileObj, other_file = None, event_type = None, data = None):
         print("Detected Changes!")
@@ -50,13 +55,29 @@ class OverViewImage:
 
         [begin, end, imageFile] = line.split("?")
         self.beginning = int(begin)
-        self.ending = int(begin)
+        self.ending = int(end)
         self.updateImage(imageFile)
+        self.initiated = True
 
-    def windowResized(self):
-        return
+    def area_draw(self, area, event):
+        if not self.initiated:
+        	return
 
-    def __init__(self, filename):
+        cr = self.drawArea.window.cairo_create()
+        cr.set_source_pixbuf(self.scaledPixbuf, 0, 0)
+        cr.paint()
+
+        (width, wholeHeight) = self.drawArea.window.get_size()
+        height = self.realBottom - self.realTop
+
+        cr.set_source_rgba(0.7, 0.7, 1.0, 0.6)
+        cr.rectangle(0, int(self.realTop), width, int(height))
+        cr.fill()
+        
+
+    def __init__(self, title, filename):
+        self.initiated = False
+
         self.watchedFilename = filename
         self.gFile = gio.File(filename)
         self.gFileMonitor = self.gFile.monitor_file()
@@ -66,26 +87,20 @@ class OverViewImage:
         # the application
         self.window = gtk.Window(gtk.WINDOW_TOPLEVEL)
         self.window.connect("delete_event", self.close_application)
-        self.window.set_border_width(10)
+        self.window.set_border_width(0)
         self.window.resize(150, 500)
+        self.window.set_title(title)
         self.window.show()
-        self.window.connect()
 
+        self.drawArea = gtk.DrawingArea()
+        self.drawArea.connect("expose-event", self.area_draw )
+        self.drawArea.show()
 
-        self.codeImage = gtk.Image()
-        self.codeImage.show()
-
-        # a button to contain the image widget
-        #self.button = gtk.Button()
-        #self.button.add(self.codeImage)
-        #self.button.show()
-        #self.window.add(self.button)
-        #self.button.connect("clicked", self.button_clicked)
-        self.window.add(self.codeImage)
+        self.window.add(self.drawArea)
 
 if __name__ == "__main__":
     watchedFilename = "/tmp/overviewFile" + sys.argv[1] + '.txt'
     print(watchedFilename)
-    OverViewImage(watchedFilename)
+    OverViewImage(sys.argv[1], watchedFilename)
     gtk.main()
 
