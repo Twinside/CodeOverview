@@ -63,6 +63,17 @@
 "              vim.
 "     * 1.0  : Original version
 "
+fun! ShowCodeOverviewParams() "{{{
+    echo 's:tempDir ' . s:tempDir
+    echo 's:rmCommand ' . s:rmCommand
+    echo 's:tempCommandFile ' . s:tempCommandFile
+    echo 's:initPid ' . s:initPid
+    echo 's:wakeFile ' . s:wakeFile
+    echo 's:tempFile ' . s:tempFile
+    echo 's:friendProcess ' . s:friendProcess
+    echo 's:overviewProcess ' . s:overviewProcess
+endfunction "}}}
+
 if exists("g:__CODEOVERVIEW_VIM__")
     finish
 endif
@@ -73,9 +84,8 @@ if !has("gui_running")
 endif
 
 " 
-if v:version < 702 || (v:version == 702 && !has('patch264'))
+if v:version < 703
     echo 'Your vim version is too old for the CodeOverview plugin, please update it'
-    echo 'last version avaible at http://sourceforge.net/projects/cream/files/Vim'
     finish
 endif
 
@@ -90,7 +100,7 @@ fun! s:PrepareParameters() "{{{
     let s:tempWildIgnore = &wildignore
     set wildignore=
 
-    if has("win32")
+    if has("win32") || has("win64")
        let s:tempDir = expand("$TEMP") . '\'
        let s:rmCommand = "erase "
        let s:tempCommandFile = s:tempDir . 'command.cmd'
@@ -111,13 +121,20 @@ fun! s:PrepareParameters() "{{{
 endfunction "}}}
 
 fun! s:InitialInit() "{{{
-    if has("win32")
+    " Some version of vim don't get globpath with additional
+    " flag to avoid wildignore, so we must do it by hand
+    let s:tempWildIgnore = &wildignore
+    set wildignore=
+
+    if has("win32") || has("win64")
        let s:friendProcess = '"' . globpath( &rtp, 'plugin/WpfOverview.exe' ) . '"'
        let s:overviewProcess = '"' . globpath( &rtp, 'plugin/codeoverview.exe' ) . '"'
     else
        let s:friendProcess = '"' . globpath( &rtp, 'plugin/gtkOverview.py' ) . '"'
        let s:overviewProcess = '"' . globpath( &rtp, 'plugin/codeoverview' ) . '"'
     endif
+
+    execute 'set wildignore=' . s:tempWildIgnore
 endfunction "}}}
 
 let s:friendProcessStarted = 0
@@ -128,7 +145,7 @@ endif
 
 call s:InitialInit()
 
-if s:friendProcess == '' || s:overviewProcess == ''
+if s:friendProcess == '""' || s:overviewProcess == '""'
     echo "Can't find friend executables, aborting CodeOverview load"
     finish
 endif

@@ -1,11 +1,11 @@
 ﻿
-Microsoft Visual Studio Solution File, Format Version 10.00
-# Visual Studio 2008
+Microsoft Visual Studio Solution File, Format Version 11.00
+# Visual Studio 2010
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WpfOverview", "WpfOverview\WpfOverview.csproj", "{90F9D767-20BD-4121-863D-0AC04FB0C82D}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WinFormOverview", "WinFormOverview\WinFormOverview.csproj", "{1C165A83-8474-4EE0-A412-2E1FB0AA53AF}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "CppOverview", "CppOverview\CppOverview.vcproj", "{BDA00350-39D5-4010-8287-B260B31EF68F}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "CppOverview", "CppOverview\CppOverview.vcxproj", "{BDA00350-39D5-4010-8287-B260B31EF68F}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
