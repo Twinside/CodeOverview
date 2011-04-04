@@ -23,22 +23,40 @@ module CodeOverview( CodeDef
 import Data.Char
 import Data.Maybe( fromJust, isJust )
 import Data.List( foldl', isPrefixOf )
---import System.IO.Unsafe
+import qualified Data.Set as Set
 
+--------------------------------------------------
+----            Generation types
+--------------------------------------------------
 type ViewColor = (Int, Int, Int, Int)
 newtype NextParse = NextParse ([ViewColor], Parser)
 type ParseResult = Either NextParse (Maybe ([ViewColor], String))
 type Parser = String -> ParseResult
 
+-- | Define a language used by the image generator to put
+-- some colors in it.
 data    CodeDef = CodeDef
-    { lineComm         :: Maybe String
+    { -- | Beginning marker for mono line market
+      lineComm         :: Maybe String  
+      -- | Beginning marker for multilines comments, like
+      -- \'/*\' in C or \'{-\' in Haskell
     , multiLineCommBeg :: Maybe String
+      -- | End  marker for multiline comments, like
+      -- \'*/\' in C or \'-}\' in Haskell
     , multiLineCommEnd :: Maybe String
+      -- | Definition for identifier for the current language.
     , identParser :: Char -> Int -> Bool
+      -- | Definition for strings in the current language.
     , strParser :: Maybe (ColorDef -> Parser)
+      -- | How we must transform tab into space.
     , tabSpace :: Int
+      -- | Keyword list, for better coloration.
+    , keywordList :: Set.Set String
+      -- | Type list, for better coloration.
+    , typeList :: Set.Set String
     }
 
+-- | Color configuration for image generation.
 data    ColorDef = ColorDef
     { commentColor   :: ViewColor
     , stringColor    :: ViewColor
@@ -47,6 +65,8 @@ data    ColorDef = ColorDef
     , majColor       :: ViewColor
     , emptyColor     :: ViewColor
     , viewColor      :: ViewColor
+    , keywordColor   :: ViewColor
+    , typeColor      :: ViewColor
     }
 
 defaultColorDef :: ColorDef
@@ -58,8 +78,14 @@ defaultColorDef = ColorDef
     , majColor       = (  0,  0,  0,255)
     , emptyColor     = (255,255,255,  0)
     , viewColor      = (200,200,255,255)
+    , keywordColor   = (100,100,255,255)
+    , typeColor      = (100,100,255,255)
     }
 
+
+--------------------------------------------------
+----            Language definitions
+--------------------------------------------------
 cCodeDef, haskellCodeDef, ocamlCodeDef,
              rubyCodeDef, shellLikeCodeDef,
              htmlCodeDef, emptyCodeDef :: CodeDef
@@ -71,6 +97,8 @@ emptyCodeDef = CodeDef
             , tabSpace = 4
             , identParser = basicIdent
             , strParser = Nothing
+            , keywordList = Set.empty
+            , typeList = Set.empty
             }
 
 htmlCodeDef = emptyCodeDef
@@ -96,6 +124,13 @@ cCodeDef = CodeDef
            , tabSpace = 4
            , identParser = identWithPrime
            , strParser = Just $ stringParser False cCodeDef
+           , keywordList = Set.fromList
+                [ "do", "while", "for", "if", "typedef"
+                , "struct", "class", "public", "private"
+                , "protected", "switch", "case", "const" ]
+           , typeList = Set.fromList
+                [ "void", "int", "short", "unsigned", "char"
+                , "float", "double", "byte" ]
            }
 
 haskellCodeDef = CodeDef
@@ -105,6 +140,11 @@ haskellCodeDef = CodeDef
                  , tabSpace = 4
                  , identParser = identWithPrime
                  , strParser = Just $ stringParser False haskellCodeDef
+                 , keywordList = Set.fromList
+                    [ "let", "in", "where", "class", "instance"
+                    , "data", "type", "newtype", "module", "import"
+                    , "infixl", "infixr" ]
+                 , typeList = Set.empty
                  }
 
 ocamlCodeDef = CodeDef
@@ -114,16 +154,28 @@ ocamlCodeDef = CodeDef
                , tabSpace = 4
                , identParser = basicIdent
                , strParser = Just $ stringParser False ocamlCodeDef
+               , keywordList = Set.empty
+               , typeList = Set.empty
                }
 
+--------------------------------------------------
+----            Generation code
+--------------------------------------------------
+-- | Basic identifier parser parser the [a-zA-Z][a-zA-Z0-9']*
+-- identifier
 identWithPrime :: Char -> Int -> Bool
 identWithPrime c 0 = isAlpha c
 identWithPrime c _ = isAlphaNum c || c == '\''
 
+
+-- | Basic identifier parser parser the [a-zA-Z][a-zA-Z0-9]*
+-- identifier
 basicIdent :: Char -> Int -> Bool
 basicIdent c 0 = isAlpha c
 basicIdent c _ = isAlphaNum c
 
+
+-- | Parse a string, ignoring the \\\"
 stringParser :: Bool -> CodeDef -> ColorDef -> Parser
 stringParser allowBreak codeDef colorDef ('"':stringSuite) =
   stringer (color:) stringSuite
@@ -141,6 +193,9 @@ stringParser allowBreak codeDef colorDef ('"':stringSuite) =
           stringer acc (_:xs) = stringer (acc . (color:)) xs
 stringParser _ _ _ _ = Right Nothing
 
+
+-- | Parse a commentary from a beginning marker till the
+-- end of the line.
 monoLineComment :: CodeDef -> ColorDef -> Parser
 monoLineComment cdef colors toMatch 
   | initial `isPrefixOf` toMatch = Right $ Just (concat $ map colorer toMatch, "")
@@ -153,6 +208,9 @@ monoLineComment cdef colors toMatch
           colorer '\t' = replicate (tabSpace cdef) eColor
           colorer _ = [color]
 
+
+-- | Parse multiline comments.
+-- Comments can be nested, the parsing is recursive.
 multiLineComment :: CodeDef -> ColorDef -> Parser
 multiLineComment cdef colors toMatch
   | initial `isPrefixOf` toMatch = multiParse (replicate initSize color ++) 1
@@ -188,6 +246,8 @@ multiLineComment cdef colors toMatch
                 
             | otherwise = multiParse (acc . (color:)) level xs
 
+-- | Given a tokenizer and a string, cut a string in a token
+-- and a rest.
 eatTillSpace :: (Char -> Int -> Bool) -> String -> (String, String)
 eatTillSpace f = eater 0
     where eater _ [] = ([], [])
@@ -205,8 +265,15 @@ globalParse highlightList codeDef colorDef toParse =
             where colorHi = highlightColor colorDef
                   colorMaj = majColor colorDef
                   colorNormal = normalColor colorDef
+                  colorKey = keywordColor colorDef
+                  colorType = typeColor colorDef
+
+                  keyList = keywordList codeDef
+                  typesList = typeList codeDef
 
                   prepareWord w | w `elem` highlightList = replicate (length w) colorHi
+                                | w `Set.member` keyList = replicate (length w) colorKey
+                                | w `Set.member` typesList = replicate (length w) colorType
                                 | otherwise = map (\a -> if isUpper a then colorMaj else colorNormal) w
 
 charEater :: CodeDef -> ColorDef -> Parser
@@ -243,6 +310,7 @@ doubleSize :: [[ViewColor]] -> [[ViewColor]]
 doubleSize = concatMap (\a -> [double a, double a])
     where double = concatMap $ \a -> [a,a]
 
+-- | Draw a rectangle with alpha blending over the generated image.
 addOverMask :: ColorDef -> (Int, Int) -> (Int, Int) -> [[ViewColor]]
             -> [[ViewColor]]
 addOverMask colorDef (x,y) (width, height) pixels = prelude ++ map lineColoration toTreat ++ end
