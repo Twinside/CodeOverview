@@ -28,6 +28,10 @@
 "       Refresh your current overview.
 "
 " Additional:
+"   let g:code_overview_use_colorscheme = 0
+"       To avoid using the current colorscheme for the
+"       code view generation.
+"
 "   let g:code_overview_autostart = 1
 "       To start the plugin directly at vim launch.
 "
@@ -46,7 +50,9 @@
 "  - Amjidanutpan Rama : forcing me to test the plugin
 "		         under Windows XP.
 " ChangeLog:
-"     * 2.0  : Adding linoux Versioun
+"     * 2.0  : Adding linux Version
+"              Adding OSX Version
+"              Added color from current colorscheme.
 "     * 1.8  : Added option to start plugin automatically.
 "     * 1.7  : Added condition to avoid loading very huge file.
 "     * 1.6  : Handling of HUUUUUUGES file
@@ -63,17 +69,6 @@
 "              vim.
 "     * 1.0  : Original version
 "
-fun! ShowCodeOverviewParams() "{{{
-    echo 's:tempDir ' . s:tempDir
-    echo 's:rmCommand ' . s:rmCommand
-    echo 's:tempCommandFile ' . s:tempCommandFile
-    echo 's:initPid ' . s:initPid
-    echo 's:wakeFile ' . s:wakeFile
-    echo 's:tempFile ' . s:tempFile
-    echo 's:friendProcess ' . s:friendProcess
-    echo 's:overviewProcess ' . s:overviewProcess
-endfunction "}}}
-
 if exists("g:__CODEOVERVIEW_VIM__")
     finish
 endif
@@ -83,13 +78,51 @@ if !has("gui_running")
     finish
 endif
 
-" 
 if v:version < 703
     echo 'Your vim version is too old for the CodeOverview plugin, please update it'
     finish
 endif
 
+if !exists("g:code_overview_use_colorscheme")
+	let g:code_overview_use_colorscheme = 1
+endif
+
+if !exists("g:codeOverviewMaxLineCount")
+    let g:codeOverviewMaxLineCount = 10000
+endif
+
 let s:preparedParameters = 0
+let s:friendProcessStarted = 0
+
+fun! ShowCodeOverviewParams() "{{{
+    echo 's:tempDir ' . s:tempDir
+    echo 's:rmCommand ' . s:rmCommand
+    echo 's:tempCommandFile ' . s:tempCommandFile
+    echo 's:initPid ' . s:initPid
+    echo 's:wakeFile ' . s:wakeFile
+    echo 's:tempFile ' . s:tempFile
+    echo 's:friendProcess ' . s:friendProcess
+    echo 's:overviewProcess ' . s:overviewProcess
+    echo 's:colorFile' . s:colorFile
+endfunction "}}}
+
+" If we want to use the same color as the colorscheme,
+" we must prepare a configuration file with some infos.
+fun! s:BuildColorConfFromColorScheme() "{{{
+	let conf =
+        \ [ "comment=" . synIDattr(hlID('comment'), 'fg')    
+        \ , "normal=" . synIDattr(hlID('normal'), 'fg')
+        \ , "maj=" . synIDattr(hlID('normal'), 'fg')
+        \ , "empty=" . synIDattr(hlID('normal'), 'bg')    
+        \ , "string=" . synIDattr(hlID('string'), 'fg')    
+        \ , "keyword=" . synIDattr(hlID('keyword'), 'fg')    
+        \ , "type=" . synIDattr(hlID('type'), 'fg')    
+        \ , "view=" . synIDattr(hlID('cursorline'), 'bg')    
+        \ ]
+    
+    call writefile(conf, s:colorFile)
+endfunction "}}}
+
 fun! s:PrepareParameters() "{{{
 	if s:preparedParameters
         return
@@ -113,8 +146,12 @@ fun! s:PrepareParameters() "{{{
     let s:initPid = string(getpid())
     let s:wakeFile = s:tempDir . 'overviewFile' . s:initPid . '.txt'
     let s:tempFile = s:tempDir . 'previewer' . s:initPid . '.png'
+    let s:colorFile = s:tempDir . 'colorFile' . s:initPid
 
-    echo s:initPid
+    if g:code_overview_use_colorscheme
+        call s:BuildColorConfFromColorScheme()
+    endif 
+
     execute 'set wildignore=' . s:tempWildIgnore
 
     let s:preparedParameters = 1
@@ -126,9 +163,12 @@ fun! s:InitialInit() "{{{
     let s:tempWildIgnore = &wildignore
     set wildignore=
 
-    if has("win32") || has("win64")
+    if has('win32') || has('win64')
        let s:friendProcess = '"' . globpath( &rtp, 'plugin/WpfOverview.exe' ) . '"'
        let s:overviewProcess = '"' . globpath( &rtp, 'plugin/codeoverview.exe' ) . '"'
+    elseif has('mac')
+       let s:friendProcess = '"' . globpath( &rtp, 'plugin/MacOverview' ) . '"'
+       let s:overviewProcess = '"' . globpath( &rtp, 'plugin/codeoverview.osx' ) . '"'
     else
        let s:friendProcess = '"' . globpath( &rtp, 'plugin/gtkOverview.py' ) . '"'
        let s:overviewProcess = '"' . globpath( &rtp, 'plugin/codeoverview' ) . '"'
@@ -137,25 +177,14 @@ fun! s:InitialInit() "{{{
     execute 'set wildignore=' . s:tempWildIgnore
 endfunction "}}}
 
-let s:friendProcessStarted = 0
-
-if !exists("g:codeOverviewMaxLineCount")
-    let g:codeOverviewMaxLineCount = 10000
-endif
-
-call s:InitialInit()
-
-if s:friendProcess == '""' || s:overviewProcess == '""'
-    echo "Can't find friend executables, aborting CodeOverview load"
-    finish
-endif
-
-au VimLeavePre * call s:RemoveTempsFile()
-
 fun! s:RemoveTempsFile() "{{{
     call delete( s:wakeFile )
     call delete( s:tempFile )
     call delete( s:tempCommandFile )
+
+    if g:code_overview_use_colorscheme
+        call delete( s:colorFile )
+    endif 
 endfunction "}}}
 
 fun! s:StopFriendProcess() "{{{
@@ -239,8 +268,13 @@ fun! s:SnapshotFile() "{{{
     endif
 
     " Generate the new image file
-    let commandLine = s:overviewProcess . ' -o "' . s:tempFile . '" '
-                             \ . highlighted . " " . filename
+    if g:code_overview_use_colorscheme
+        let commandLine = s:overviewProcess . ' --conf ' . s:colorFile . ' -o "' . s:tempFile . '" '
+                                \ . highlighted . " " . filename
+    else
+        let commandLine = s:overviewProcess . ' -o "' . s:tempFile . '" '
+                                \ . highlighted . " " . filename
+    endif
 
     " Make an non-blocking start
     if has("win32")
@@ -283,6 +317,15 @@ fun! s:RemoveCodeOverviewHook() "{{{
         au!
     augroup END
 endfunction "}}}
+
+call s:InitialInit()
+
+if s:friendProcess == '""' || s:overviewProcess == '""'
+    echo "Can't find friend executables, aborting CodeOverview load"
+    finish
+endif
+
+au VimLeavePre * call s:RemoveTempsFile()
 
 command! CodeOverviewNoAuto echo 'CodeOverview Friend Process not started!'
 command! CodeOverviewAuto echo 'CodeOverview Friend Process not started!'

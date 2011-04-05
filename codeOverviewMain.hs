@@ -84,6 +84,7 @@ extensionAssociation =
     , (".cc"    , ("C++"          , cCodeDef))
     , (".java"  , ("Java"         , cCodeDef))
     , (".js"    , ("Javascript"   , cCodeDef))
+    , (".m"     , ("Objective C"  , cCodeDef))
     , (".ml"    , ("OCaml"        , ocamlCodeDef))
     , (".mli"   , ("OCaml"        , ocamlCodeDef))
     , (".fs"    , ("F#"           , ocamlCodeDef))
@@ -99,7 +100,11 @@ extensionAssociation =
     ]
 
 loadConf :: OverOption -> IO ColorDef
-loadConf _opt = return defaultColorDef
+loadConf opts
+    | null $ overConf opts = return defaultColorDef
+    | otherwise = do
+        file <- readFile $ overConf opts
+        return $ parseColorDef file
 
 savePngImage :: OverOption -> FilePath -> [[ViewColor]] -> IO ()
 savePngImage option path pixels

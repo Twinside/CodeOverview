@@ -1,8 +1,9 @@
-module CodeOverview( CodeDef
+module CodeOverview(-- * Types 
+                     CodeDef
                    , ColorDef
                    , ViewColor
 
-                   -- Defined languages
+                   -- * Defined languages
                    , cCodeDef
                    , haskellCodeDef
                    , ocamlCodeDef
@@ -11,10 +12,11 @@ module CodeOverview( CodeDef
                    , htmlCodeDef
                    , emptyCodeDef 
 
-                   -- Defined colorset
+                   -- * Colorsets
                    , defaultColorDef
+                   , parseColorDef
 
-                   -- Manipulation function
+                   -- * Manipulation function
                    , createCodeOverview 
                    , addOverMask
                    , doubleSize
@@ -68,6 +70,7 @@ data    ColorDef = ColorDef
     , keywordColor   :: ViewColor
     , typeColor      :: ViewColor
     }
+    deriving Show
 
 defaultColorDef :: ColorDef
 defaultColorDef = ColorDef
@@ -86,10 +89,22 @@ defaultColorDef = ColorDef
 ----            Color conf parsing
 --------------------------------------------------
 readHex :: Char -> Int
-readHex c | 'a' <= c && c <= 'F' = fromEnum c - fromEnum 'a' + 10
+readHex c | 'a' <= c && c <= 'f' = fromEnum c - fromEnum 'a' + 10
           | 'A' <= c && c <= 'F' = fromEnum c - fromEnum 'A' + 10
           | '0' <= c && c <= '9' = read [c]
           | otherwise = 0
+
+split :: Char -> String -> [String]
+split _ "" =  []
+-- Somehow GHC doesn't detect the selector thunks in the below code,
+-- so s' keeps a reference to the first line via the pair and we have
+-- a space leak (cf. #4334).
+-- So we need to make GHC see the selector thunks with a trick.
+split c s = cons (case break (== c) s of
+        (l, s') -> (l, case s' of
+                         []     -> []
+                         _:s'' -> split c s''))
+  where cons ~(h, t) = h : t
 
 parseHtmlColor :: String -> Maybe ViewColor
 parseHtmlColor ['#', r1, r2, g1, g2, b1, b2, a1, a2] = Just (r, g, b, a)
@@ -105,7 +120,11 @@ parseHtmlColor _ = Nothing
 
 parseColorDef :: String -> ColorDef
 parseColorDef txt = foldl' updateColorDef defaultColorDef vals
-    where vals = map (break ('=' ==)) $ lines txt
+    where cleanSecondPart (a, []) = (a, [])
+          cleanSecondPart (a, _:xs) = (a, xs)
+          vals = map (cleanSecondPart . break ('=' ==)) 
+               . concatMap (split ';')
+               $ lines txt
 
 updateColorDef :: ColorDef -> (String, String) -> ColorDef
 updateColorDef def ("comment",val) =
