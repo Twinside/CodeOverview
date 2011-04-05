@@ -90,6 +90,7 @@ extensionAssociation =
     , (".fsi"   , ("F#"           , ocamlCodeDef))
     , (".py"    , ("Python"       , shellLikeCodeDef))
     , (".sh"    , ("Shell Script" , shellLikeCodeDef))
+    , ("Makefile", ("Shell Script" , shellLikeCodeDef))
     , (".rb"    , ("Rubyt"        , rubyCodeDef))
     , (".html"  , ("HTML"         , htmlCodeDef))
     , (".htm"   , ("HTML"         , htmlCodeDef))
@@ -119,9 +120,10 @@ codeDefOfExt option path extension =
 performTransformation :: OverOption -> FilePath -> IO [[ViewColor]]
 performTransformation option path = do
     file <- readFile path
-    codeDef <- codeDefOfExt option path 
-             . snd
-             $ splitExtension path
+    let (fname, ext) = splitExtension path
+        fileExt = if ext == "" then snd $ splitFileName fname
+                               else ext
+    codeDef <- codeDefOfExt option path fileExt
     colorDef <- loadConf option
     let pixelList = createCodeOverview 
                         codeDef

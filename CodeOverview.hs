@@ -82,6 +82,51 @@ defaultColorDef = ColorDef
     , typeColor      = (100,100,255,255)
     }
 
+--------------------------------------------------
+----            Color conf parsing
+--------------------------------------------------
+readHex :: Char -> Int
+readHex c | 'a' <= c && c <= 'F' = fromEnum c - fromEnum 'a' + 10
+          | 'A' <= c && c <= 'F' = fromEnum c - fromEnum 'A' + 10
+          | '0' <= c && c <= '9' = read [c]
+          | otherwise = 0
+
+parseHtmlColor :: String -> Maybe ViewColor
+parseHtmlColor ['#', r1, r2, g1, g2, b1, b2, a1, a2] = Just (r, g, b, a)
+    where r = readHex r1 * 16 + readHex r2
+          g = readHex g1 * 16 + readHex g2
+          b = readHex b1 * 16 + readHex b2
+          a = readHex a1 * 16 + readHex a2
+parseHtmlColor ['#', r1, r2, g1, g2, b1, b2] = Just (r, g, b, 255)
+    where r = readHex r1 * 16 + readHex r2
+          g = readHex g1 * 16 + readHex g2
+          b = readHex b1 * 16 + readHex b2
+parseHtmlColor _ = Nothing
+
+parseColorDef :: String -> ColorDef
+parseColorDef txt = foldl' updateColorDef defaultColorDef vals
+    where vals = map (break ('=' ==)) $ lines txt
+
+updateColorDef :: ColorDef -> (String, String) -> ColorDef
+updateColorDef def ("comment",val) =
+    maybe def (\c -> def { commentColor = c }) $ parseHtmlColor val
+updateColorDef def ("normal",val) =
+    maybe def (\c -> def { normalColor = c }) $ parseHtmlColor val
+updateColorDef def ("string",val) =
+    maybe def (\c -> def { stringColor = c }) $ parseHtmlColor val
+updateColorDef def ("highlight",val) =
+    maybe def (\c -> def { highlightColor = c }) $ parseHtmlColor val
+updateColorDef def ("maj",val) =
+    maybe def (\c -> def { majColor = c }) $ parseHtmlColor val
+updateColorDef def ("empty",val) =
+    maybe def (\c -> def { emptyColor = c }) $ parseHtmlColor val
+updateColorDef def ("view",val) =
+    maybe def (\c -> def { viewColor = c }) $ parseHtmlColor val
+updateColorDef def ("keyword",val) =
+    maybe def (\c -> def { keywordColor = c }) $ parseHtmlColor val
+updateColorDef def ("type",val) =
+    maybe def (\c -> def { typeColor = c }) $ parseHtmlColor val
+updateColorDef def _ = def
 
 --------------------------------------------------
 ----            Language definitions
@@ -125,7 +170,7 @@ cCodeDef = CodeDef
            , identParser = identWithPrime
            , strParser = Just $ stringParser False cCodeDef
            , keywordList = Set.fromList
-                [ "do", "while", "for", "if", "typedef"
+                [ "do", "while", "for", "if", "else", "typedef"
                 , "struct", "class", "public", "private"
                 , "protected", "switch", "case", "const" ]
            , typeList = Set.fromList
@@ -143,8 +188,11 @@ haskellCodeDef = CodeDef
                  , keywordList = Set.fromList
                     [ "let", "in", "where", "class", "instance"
                     , "data", "type", "newtype", "module", "import"
-                    , "infixl", "infixr" ]
-                 , typeList = Set.empty
+                    , "infixl", "infixr", "if", "then", "else", "qualified"
+                    ]
+                 , typeList = Set.fromList
+                    [ "Bool", "Int", "Integer", "Float"
+                    , "Double", "Set", "Map", "Char", "String" ]
                  }
 
 ocamlCodeDef = CodeDef
@@ -154,8 +202,13 @@ ocamlCodeDef = CodeDef
                , tabSpace = 4
                , identParser = basicIdent
                , strParser = Just $ stringParser False ocamlCodeDef
-               , keywordList = Set.empty
-               , typeList = Set.empty
+               , keywordList = Set.fromList
+                    [ "let", "in", "and", "match", "if", "then"
+                    , "else", "module", "sig", "begin", "end"
+                    , "class"
+                    ]
+               , typeList = Set.fromList
+                    [ "bool", "int", "char", "float" ]
                }
 
 --------------------------------------------------

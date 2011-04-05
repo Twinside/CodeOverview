@@ -1,6 +1,8 @@
 build:
-	runhaskell Setup.hs build
-	cp dist/build/codeoverview/codeoverview.exe .
+	ghc --make -o codeoverview codeOverviewMain.hs
+	cp codeoverview ~/vimfiles/bundle/CodeOverview/plugin/
+	#runhaskell Setup.hs build
+	#cp dist/build/codeoverview/codeoverview.exe .
 
 run:
 	codeoverview.exe png.hs
