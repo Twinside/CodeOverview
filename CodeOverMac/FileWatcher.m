@@ -56,11 +56,46 @@
     }
 }
 
+- (void)drawRect:(NSRect)aRect
+{
+    NSRect frame = [self bounds];
+
+    [backColor setFill];
+    NSRectFill( frame );
+    [[NSColor blackColor] setFill];
+
+    [super drawRect:aRect];
+}
+
 - (void)awakeFromNib
 {
+    backColor = nil;
     continuePolling = YES;
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT,0),
                    ^{[self pollDispatch];});
+}
+
++ (NSColor *) colorFromHexRGB:(NSString *) inColorString
+{
+	NSColor *result = nil;
+	unsigned int colorCode = 0;
+	unsigned char redByte, greenByte, blueByte;
+	
+	if (nil != inColorString)
+	{
+		NSScanner *scanner =
+            [NSScanner scannerWithString:[inColorString substringFromIndex:1]];
+		(void) [scanner scanHexInt:&colorCode];	// ignore error
+	}
+	redByte		= (unsigned char) (colorCode >> 16);
+	greenByte	= (unsigned char) (colorCode >> 8);
+	blueByte	= (unsigned char) (colorCode);	// masks off high bits
+	result = [NSColor
+              colorWithCalibratedRed:		(float)redByte	/ 0xff
+              green:	(float)greenByte/ 0xff
+              blue:	(float)blueByte	/ 0xff
+              alpha:1.0];
+	return result;
 }
 
 - (void)fileChanged
@@ -77,20 +112,27 @@
                                          error:NULL];
         parts = [fileContent componentsSeparatedByString:@"?"];
         
+        
+        if ([@"quit" isEqualTo:[fileContent stringByTrimmingCharactersInSet:
+                                [NSCharacterSet whitespaceAndNewlineCharacterSet]]])
+            exit(0);
+        
         if (maxRetryCount-- <= 0) return;
         
         // there is some timing issue, if misread, retry.
-    } while (!parts || [parts count] < 3);
-    
+    } while (!parts || [parts count] < 4);
+
     viewBegin = [[parts objectAtIndex:0] integerValue];
     viewEnd = [[parts objectAtIndex:1] integerValue];
     
     NSString *cleanString =
-        [[parts objectAtIndex:2]
+        [[parts objectAtIndex:3]
             stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
     
     NSImage *img = [[NSImage alloc] initWithContentsOfFile:cleanString];
 
+    [backColor release];
+    backColor = [[FileWatcher colorFromHexRGB:[parts objectAtIndex:2]] retain];
     dispatch_async(dispatch_get_main_queue(), ^{
         [self setImage:img];
         [img release];

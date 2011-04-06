@@ -12,12 +12,11 @@ typedef int KQueue;
 typedef int EventFile;
 
 @interface FileWatcher : NSImageView {
-    NSImageView *imageView;
-    NSURL   *imageUrl;
     FSEventStreamRef fileWatcher;
     
     NSInteger viewBegin;
     NSInteger viewEnd;
+    NSColor  *backColor;
     NSString *wakeFilePath;
 
     KQueue      watchQueue;
