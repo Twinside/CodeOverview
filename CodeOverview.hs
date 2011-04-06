@@ -9,6 +9,7 @@ module CodeOverview(-- * Types
                    , ocamlCodeDef
                    , rubyCodeDef
                    , shellLikeCodeDef 
+                   , pythonCodeDef 
                    , htmlCodeDef
                    , emptyCodeDef 
 
@@ -152,7 +153,8 @@ updateColorDef def _ = def
 --------------------------------------------------
 cCodeDef, haskellCodeDef, ocamlCodeDef,
              rubyCodeDef, shellLikeCodeDef,
-             htmlCodeDef, emptyCodeDef :: CodeDef
+             htmlCodeDef, emptyCodeDef,
+             pythonCodeDef :: CodeDef
 
 emptyCodeDef = CodeDef
             { lineComm = Nothing
@@ -180,6 +182,18 @@ rubyCodeDef = shellLikeCodeDef
     { multiLineCommBeg = Just "=begin"
     , multiLineCommEnd = Just "=end"
     }
+
+pythonCodeDef = shellLikeCodeDef
+           { identParser = identWithPrime
+           , strParser = Just $ stringParser False pythonCodeDef
+           , keywordList = Set.fromList
+                [ "def", "if", "while", "for", "in", "class"
+                , "import", "from", "return", "break", "continue"
+                , "not", "try", "with", "finally" ]
+
+           , typeList = Set.fromList
+                [ "int", "float", "string" ]
+           }
 
 cCodeDef = CodeDef
            { lineComm = Just "//"

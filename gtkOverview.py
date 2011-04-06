@@ -81,7 +81,6 @@ class OverViewImage:
         cr.set_source_pixbuf(self.scaledPixbuf, 0, 0)
         cr.paint()
 
-
         cr.set_source_rgba(0.7, 0.7, 1.0, 0.6)
         cr.rectangle(0, int(self.realTop), width, int(height))
         cr.fill()

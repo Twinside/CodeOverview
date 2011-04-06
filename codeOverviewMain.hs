@@ -89,7 +89,7 @@ extensionAssociation =
     , (".mli"   , ("OCaml"        , ocamlCodeDef))
     , (".fs"    , ("F#"           , ocamlCodeDef))
     , (".fsi"   , ("F#"           , ocamlCodeDef))
-    , (".py"    , ("Python"       , shellLikeCodeDef))
+    , (".py"    , ("Python"       , pythonCodeDef))
     , (".sh"    , ("Shell Script" , shellLikeCodeDef))
     , ("Makefile", ("Shell Script" , shellLikeCodeDef))
     , (".rb"    , ("Rubyt"        , rubyCodeDef))
