@@ -22,9 +22,8 @@ typedef int EventFile;
 
     KQueue      watchQueue;
     EventFile   file;
+    bool        continuePolling;
 }
-@property (assign) IBOutlet NSImageView *imageView;
-@property (copy)   NSURL *imageUrl;
 
 - (void)release;
 - (void)fileChanged;

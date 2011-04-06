@@ -7,48 +7,60 @@
 //
 
 #import "FileWatcher.h"
-
-void fileCallbackInfo( ConstFSEventStreamRef streamRef,
-                      void *clientCallBackInfo,
-                      size_t numEvents,
-                      void *eventPaths,
-                      const FSEventStreamEventFlags eventFlags[],
-                      const FSEventStreamEventId eventIds[] )
-{
-    [(FileWatcher*)clientCallBackInfo fileChanged];
-}
+#include <sys/types.h>
+#include <sys/event.h>
+#include <sys/time.h>
 
 @implementation FileWatcher
-@synthesize imageView;
-@synthesize imageUrl;
-
-- (void)awakeFromNib
+- (void)pollDispatch
 {
-    //self = [NSObject init];
-    NSDictionary * arguments = [[NSUserDefaults standardUserDefaults] volatileDomainForName:NSArgumentDomain];
+    NSDictionary * arguments = 
+        [[NSUserDefaults standardUserDefaults] 
+            volatileDomainForName:NSArgumentDomain];
+
     NSString* pid = [arguments objectForKey:@"p"];
     
     wakeFilePath = [NSString stringWithFormat:@"/tmp/overviewFile%@.txt", pid];
     [wakeFilePath retain];
     
-    NSString *pathToWatch = @"/tmp/";
-    CFArrayRef pathsToWatch = CFArrayCreate(NULL, (const void **)&pathToWatch, 1, NULL);
-    void *callbackInfo = self; // could put stream-specific data here.
-    CFAbsoluteTime latency = 3.0; /* Latency in seconds */
-    
-    
-    /* Create the stream, passing in a callback */
-    fileWatcher = FSEventStreamCreate(NULL,
-                                      &fileCallbackInfo,
-                                      callbackInfo,
-                                      pathsToWatch,
-                                      kFSEventStreamEventIdSinceNow, /* Or a previous event ID */
-                                      latency,
-                                      kFSEventStreamCreateFlagNone /* Flags explained in reference */
-                                      );
-    FSEventStreamScheduleWithRunLoop(fileWatcher, CFRunLoopGetCurrent(), kCFRunLoopDefaultMode);
-    FSEventStreamStart(fileWatcher);
-    //return self;
+    NSLog(@"Watching %@", wakeFilePath);
+    watchQueue = kqueue();
+    if (watchQueue == -1)
+    {
+        NSLog(@"Error : can't create watchQueue\n");
+        return;
+    }
+
+    file = open([wakeFilePath UTF8String], O_EVTONLY);
+    if (file == -1)
+    {
+        NSLog(@"Error : can't open watched file\n");
+        return;
+    }
+
+    struct kevent event;
+    struct kevent change;
+
+    EV_SET(&change, file, EVFILT_VNODE,
+           EV_ADD | EV_ENABLE | EV_ONESHOT,
+           NOTE_DELETE | NOTE_EXTEND | NOTE_WRITE | NOTE_ATTRIB,
+           0, 0);
+ 
+    while (continuePolling)
+    {
+        int nev = kevent(watchQueue, &change, 1, &event, 1, NULL);
+        if (nev > 0 && (event.fflags & NOTE_EXTEND || event.fflags & NOTE_WRITE))
+        {
+            [self fileChanged];
+        }
+    }
+}
+
+- (void)awakeFromNib
+{
+    continuePolling = YES;
+    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT,0),
+                   ^{[self pollDispatch];});
 }
 
 - (void)fileChanged
@@ -57,24 +69,30 @@ void fileCallbackInfo( ConstFSEventStreamRef streamRef,
     [NSString stringWithContentsOfFile:wakeFilePath
                               encoding:NSUTF8StringEncoding
                                  error:NULL];
+    NSLog(@"Readed :%@ '%@'", wakeFilePath, fileContent);
     NSArray *parts = [fileContent componentsSeparatedByString:@"?"];
     // top
     viewBegin = [[parts objectAtIndex:0] integerValue];
     viewEnd = [[parts objectAtIndex:1] integerValue];
     
-    // filename
-    [self setImageUrl:[NSURL URLWithString:[parts objectAtIndex:2]]];
+    NSString *cleanString =
+        [[parts objectAtIndex:2]
+            stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+    
+    NSImage *img = [[NSImage alloc] initWithContentsOfFile:cleanString];
+
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [self setImage:img];
+        [img release];
+    });
 }
 
 - (void)mouseUp:(NSEvent *)theEvent
 {
-    NSLog(@"Meh\n");
 }
 
 - (void)release
 {
-   // FSEventStreamStop(fileWatcher);
-   // FSEventStreamInvalidate(fileWatcher);
-   // FSEventStreamRelease(fileWatcher);
 }
 @end
+
