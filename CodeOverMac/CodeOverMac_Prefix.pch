@@ -1,0 +1,7 @@
+//
+// Prefix header for all source files of the 'CodeOverMac' target in the 'CodeOverMac' project
+//
+
+#ifdef __OBJC__
+    #import <Cocoa/Cocoa.h>
+#endif

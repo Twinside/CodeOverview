@@ -167,7 +167,7 @@ fun! s:InitialInit() "{{{
        let s:friendProcess = '"' . globpath( &rtp, 'plugin/WpfOverview.exe' ) . '"'
        let s:overviewProcess = '"' . globpath( &rtp, 'plugin/codeoverview.exe' ) . '"'
     elseif has('mac')
-       let s:friendProcess = '"' . globpath( &rtp, 'plugin/MacOverview' ) . '"'
+       let s:friendProcess = '"' . globpath( &rtp, 'plugin/gtkOverview.py' ) . '"'
        let s:overviewProcess = '"' . globpath( &rtp, 'plugin/codeoverview.osx' ) . '"'
     else
        let s:friendProcess = '"' . globpath( &rtp, 'plugin/gtkOverview.py' ) . '"'
