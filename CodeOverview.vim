@@ -78,7 +78,7 @@ if !has("gui_running")
     finish
 endif
 
-if v:version < 703
+if v:version < 702
     echo 'Your vim version is too old for the CodeOverview plugin, please update it'
     finish
 endif

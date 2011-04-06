@@ -41,7 +41,6 @@ class OverViewImage:
         self.drawArea.queue_draw()
 
     def info_changed(self, monitor, fileObj, other_file = None, event_type = None, data = None):
-        print("Detected Changes!")
         wakeFile = open(self.watchedFilename,"r")
         line = wakeFile.read()
         wakeFile.close()
@@ -58,8 +57,8 @@ class OverViewImage:
         self.ending = int(end)
         self.updateImage(imageFile)
 
-        color = gtk.gdk.color_parse(backColor)
-        self.window.modify_bg(gtk.STATE_NORMAL, color)
+        self.backColor = gtk.gdk.color_parse(backColor)
+        self.window.modify_bg(gtk.STATE_NORMAL, self.backColor)
 
         self.initiated = True
 
@@ -67,12 +66,21 @@ class OverViewImage:
         if not self.initiated:
         	return
 
+        (width, wholeHeight) = self.drawArea.window.get_size()
+        height = self.realBottom - self.realTop
+
         cr = self.drawArea.window.cairo_create()
+
+        cr.set_source_rgba(self.backColor.red_float, 
+                           self.backColor.green_float, 
+                           self.backColor.blue_float, 1.0)
+        cr.rectangle(0, 0, width, wholeHeight)
+        cr.fill()
+
+        cr.set_source_rgba(1.0, 1.0, 1.0, 1.0)
         cr.set_source_pixbuf(self.scaledPixbuf, 0, 0)
         cr.paint()
 
-        (width, wholeHeight) = self.drawArea.window.get_size()
-        height = self.realBottom - self.realTop
 
         cr.set_source_rgba(0.7, 0.7, 1.0, 0.6)
         cr.rectangle(0, int(self.realTop), width, int(height))
@@ -92,9 +100,13 @@ class OverViewImage:
         self.window = gtk.Window(gtk.WINDOW_TOPLEVEL)
         self.window.connect("delete_event", self.close_application)
         self.window.set_border_width(0)
-        self.window.resize(150, 500)
+        self.window.resize(80, 500)
+        self.window.move(0, 0)
         self.window.set_title(title)
+        self.window.set_icon(None)
         self.window.show()
+
+        self.backColor = gtk.gdk.color_parse('#FFFFFF')
 
         self.drawArea = gtk.DrawingArea()
         self.drawArea.connect("expose-event", self.area_draw )
@@ -104,7 +116,6 @@ class OverViewImage:
 
 if __name__ == "__main__":
     watchedFilename = "/tmp/overviewFile" + sys.argv[1] + '.txt'
-    print(watchedFilename)
     OverViewImage(sys.argv[1], watchedFilename)
     gtk.main()
 
