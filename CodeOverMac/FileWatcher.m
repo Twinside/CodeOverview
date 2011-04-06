@@ -49,7 +49,7 @@
     while (continuePolling)
     {
         int nev = kevent(watchQueue, &change, 1, &event, 1, NULL);
-        if (nev > 0 && (event.fflags & NOTE_EXTEND || event.fflags & NOTE_WRITE))
+        if (nev > 0 && (event.fflags & NOTE_EXTEND))// || event.fflags & NOTE_WRITE))
         {
             [self fileChanged];
         }
@@ -65,13 +65,23 @@
 
 - (void)fileChanged
 {
-    NSString *fileContent =
-    [NSString stringWithContentsOfFile:wakeFilePath
-                              encoding:NSUTF8StringEncoding
-                                 error:NULL];
-    NSLog(@"Readed :%@ '%@'", wakeFilePath, fileContent);
-    NSArray *parts = [fileContent componentsSeparatedByString:@"?"];
-    // top
+    NSString *fileContent;
+    NSArray *parts;
+    
+    int maxRetryCount = 10;
+    do
+    {
+        fileContent =
+            [NSString stringWithContentsOfFile:wakeFilePath
+                                      encoding:NSUTF8StringEncoding
+                                         error:NULL];
+        parts = [fileContent componentsSeparatedByString:@"?"];
+        
+        if (maxRetryCount-- <= 0) return;
+        
+        // there is some timing issue, if misread, retry.
+    } while (!parts || [parts count] < 3);
+    
     viewBegin = [[parts objectAtIndex:0] integerValue];
     viewEnd = [[parts objectAtIndex:1] integerValue];
     

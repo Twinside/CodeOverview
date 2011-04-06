@@ -53,10 +53,14 @@ class OverViewImage:
         	gtk.main_quit()
         	return
 
-        [begin, end, imageFile] = line.split("?")
+        [begin, end, backColor, imageFile] = line.split("?")
         self.beginning = int(begin)
         self.ending = int(end)
         self.updateImage(imageFile)
+
+        color = gtk.gdk.color_parse(backColor)
+        self.window.modify_bg(gtk.STATE_NORMAL, color)
+
         self.initiated = True
 
     def area_draw(self, area, event):

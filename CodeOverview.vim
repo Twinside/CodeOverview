@@ -276,15 +276,16 @@ fun! s:SnapshotFile() "{{{
                                 \ . highlighted . " " . filename
     endif
 
+    let wakeText = string(winInfo.topline) 
+               \ . '?' . string(lastVisibleLine)
+               \ . '?' . synIDattr(hlID('normal'), 'bg')
+               \ . '?' . s:tempFile
+
     " Make an non-blocking start
-    if has("win32")
-        let wakeCommand = 'echo ' . string(winInfo.topline) 
-                        \ . '?' . string(lastVisibleLine)
-                        \ . '?' . s:tempFile . ' > "' . s:wakeFile . '"'
+    if has('win32')
+        let wakeCommand = 'echo ' . wakeText . ' > "' . s:wakeFile . '"'
     else
-        let wakeCommand = 'echo "' . string(winInfo.topline) 
-                        \ . '?' . string(lastVisibleLine)
-                        \ . '?' . s:tempFile . '" > "' . s:wakeFile . '"'
+        let wakeCommand = 'echo "' . wakeText . '" > "' . s:wakeFile . '"'
     endif
 
     if &modified
