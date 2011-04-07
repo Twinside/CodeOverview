@@ -139,7 +139,7 @@ fun! s:PrepareParameters() "{{{
        let s:tempCommandFile = s:tempDir . 'command.cmd'
     else
        let s:tempDir = "/tmp/"
-       let s:rmCommand = "rm "
+       let s:rmCommand = "rm -f "
        let s:tempCommandFile = s:tempDir . 'command.sh'
     endif
 
@@ -197,6 +197,7 @@ fun! s:StopFriendProcess() "{{{
     let s:friendProcessStarted = 0
 
     call s:RemoveCodeOverviewHook()
+    call s:RemoveTempsFile()
 
     command! CodeOverviewNoAuto echo 'CodeOverview Friend Process not started!'
     command! CodeOverviewAuto echo 'CodeOverview Friend Process not started!'
@@ -217,8 +218,7 @@ fun! s:LaunchFriendProcess() "{{{
         call system('cmd /s /c "start "CodeOverview Launcher" /b '
                 \ . s:friendProcess . ' ' . s:initPid . '"')
     else
-        let cmd = '!'. s:friendProcess . ' ' . s:initPid . ' &'
-        exec cmd
+        call system(s:friendProcess . ' ' . s:initPid . ' &')
     endif
 
     let s:friendProcessStarted = 1
@@ -252,7 +252,7 @@ fun! s:SnapshotFile() "{{{
     let filename = '"' . filename . '"'
         let lines = [] " Just to let the garbage collector do it's job.
     else
-        let filename = '"' . expand( '%' ) . '"'
+        let filename = '"' . expand( '%:p' ) . '"'
     endif
 
     let lastVisibleLine = line('w$')
@@ -269,11 +269,17 @@ fun! s:SnapshotFile() "{{{
 
     " Generate the new image file
     if g:code_overview_use_colorscheme
-        let commandLine = s:overviewProcess . ' --conf ' . s:colorFile . ' -o "' . s:tempFile . '" '
+        let commandLine = s:overviewProcess . ' -v --conf ' . s:colorFile . ' -o "' . s:tempFile . '" '
                                 \ . highlighted . " " . filename
     else
-        let commandLine = s:overviewProcess . ' -o "' . s:tempFile . '" '
+        let commandLine = s:overviewProcess . ' -v -o "' . s:tempFile . '" '
                                 \ . highlighted . " " . filename
+    endif
+
+    if !has('win32')
+        let header = '#!/bin/sh'
+    else
+    	let header = ''
     endif
 
     let wakeText = string(winInfo.topline) 
@@ -284,17 +290,28 @@ fun! s:SnapshotFile() "{{{
     " Make an non-blocking start
     if has('win32')
         let wakeCommand = 'echo ' . wakeText . ' > "' . s:wakeFile . '"'
+        let localeSwitch = ''
     else
         let wakeCommand = 'echo "' . wakeText . '" > "' . s:wakeFile . '"'
+        " Problem arise with mismatch of locale, so set it to a working
+        " one
+        let localSwitch = 'LC_ALL=en_US.utf8'
     endif
+
+    let commandFile = [ header
+                    \ , s:rmCommand . '"' . s:tempFile . '"'
+                    \ , localSwitch
+                    \ , commandLine
+                    \ , wakeCommand
+                    \ ]
 
     if &modified
-        call writefile( [commandLine, wakeCommand, s:rmCommand . filename], s:tempCommandFile )
-    else
-        call writefile( [commandLine, wakeCommand], s:tempCommandFile )
+    	call add(commandFile, s:rmCommand . filename )
     endif
 
-    if has("win32")
+    call writefile( commandFile, s:tempCommandFile )
+
+    if has('win32')
         call system( '"' . s:tempCommandFile . '"' )
     else 
     	call system( 'sh "' . s:tempCommandFile . '" &' )
@@ -326,7 +343,7 @@ if s:friendProcess == '""' || s:overviewProcess == '""'
     finish
 endif
 
-au VimLeavePre * call s:RemoveTempsFile()
+au VimLeavePre * call s:StopFriendProcess()
 
 command! CodeOverviewNoAuto echo 'CodeOverview Friend Process not started!'
 command! CodeOverviewAuto echo 'CodeOverview Friend Process not started!'

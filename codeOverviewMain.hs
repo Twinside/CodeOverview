@@ -162,8 +162,11 @@ main = do
                 do when (overVerbose options)
                         (putStrLn $ "Processing " ++ file)
                    pixels <- performTransformation options file
-                   when (not $ null pixels)
-                        (do let outPath = overOut options file
-                            savePngImage options outPath pixels)
+                   if null pixels
+                      then putStrLn "Error no pixel processed"
+                      else (do let outPath = overOut options file
+                               when (overVerbose options)
+                                    (putStrLn $ "Writing image at" ++ outPath)
+                               savePngImage options outPath pixels)
                    ) $ overFiles options
 
