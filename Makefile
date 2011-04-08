@@ -1,7 +1,7 @@
 build:
+	runhaskell Setup.hs build
 	#ghc --make -o codeoverview codeOverviewMain.hs
 	#cp codeoverview ~/vimfiles/bundle/CodeOverview/plugin/
-	runhaskell Setup.hs build
 	#cp dist/build/codeoverview/codeoverview.exe .
 
 run:

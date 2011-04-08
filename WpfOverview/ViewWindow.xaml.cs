@@ -503,9 +503,10 @@ namespace WpfOverview
                             if (!File.Exists(file))
                                 return;
 
+                            BitmapImage newOverview = new BitmapImage();
+
                             try
                             {
-                                BitmapImage newOverview = new BitmapImage();
 
                                 newOverview.BeginInit();
                                 newOverview.CreateOptions = BitmapCreateOptions.IgnoreImageCache;
@@ -541,10 +542,16 @@ namespace WpfOverview
 
                             try
                             {
-                                double realTop = ((double)int.Parse(infos[0])) / pictureViewer.Source.Height * pictureViewer.ActualHeight;
-                                double realBottom = ((double)int.Parse(infos[1])) / pictureViewer.Source.Height * pictureViewer.ActualHeight;
+                                double viewHeight = Math.Min(this.Height, newOverview.Height);
+                                double realTop = ((double)int.Parse(infos[0])) / pictureViewer.Source.Height * viewHeight;
+                                double realBottom = ((double)int.Parse(infos[1])) / pictureViewer.Source.Height * viewHeight;
+
                                 ViewRectTop = realTop;
                                 ViewRectHeight = realBottom - realTop;
+
+
+                                TypeConverter cConvert = new ColorConverter();
+                                Background = new SolidColorBrush((Color)cConvert.ConvertFromString(infos[2]));
                             }
                             catch (System.Exception)
                             {   /* don't care about parsing errors for this one */
