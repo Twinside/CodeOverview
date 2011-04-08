@@ -52,10 +52,11 @@ class OverViewImage:
         	gtk.main_quit()
         	return
 
-        [begin, end, backColor, imageFile] = line.split("?")
+        [begin, end, backColor, viewRectColor, winId, imageFile] = line.split("?")
         self.beginning = int(begin)
         self.ending = int(end)
         self.updateImage(imageFile)
+        self.vimWinId = int(winId)
 
         self.backColor = gtk.gdk.color_parse(backColor)
         self.window.modify_bg(gtk.STATE_NORMAL, self.backColor)

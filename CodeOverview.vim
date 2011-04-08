@@ -104,6 +104,7 @@ fun! ShowCodeOverviewParams() "{{{
     echo 's:friendProcess ' . s:friendProcess
     echo 's:overviewProcess ' . s:overviewProcess
     echo 's:colorFile' . s:colorFile
+    echo 's:errFile' . s:File
 endfunction "}}}
 
 " If we want to use the same color as the colorscheme,
@@ -147,6 +148,7 @@ fun! s:PrepareParameters() "{{{
     let s:wakeFile = s:tempDir . 'overviewFile' . s:initPid . '.txt'
     let s:tempFile = s:tempDir . 'previewer' . s:initPid . '.png'
     let s:colorFile = s:tempDir . 'colorFile' . s:initPid
+    let s:errFile = s:tempDir . 'errFile' . s:initPid
 
     if g:code_overview_use_colorscheme
         call s:BuildColorConfFromColorScheme()
@@ -234,6 +236,18 @@ fun! s:LaunchFriendProcess() "{{{
     call s:SnapshotFile()
 endfunction "}}}
 
+" Kind could be 'e' for error, 'w' for
+" warning 'i' for info...
+fun! s:DumpErrorLines(kindPrefix) "{{{
+	let outLines = []
+
+	for d in getqflist()
+		call add(outLines, a:kindPrefix . string(d))
+   endfor
+   
+   call writefile(outLines, s:errFile)
+endfunction "}}}
+
 " This fuction extract data from the current view,
 " generate an overview image of the current file,
 " write an in an update file readen by the following
@@ -282,9 +296,17 @@ fun! s:SnapshotFile() "{{{
     	let header = ''
     endif
 
+    if has('win32')
+       let winId = 0
+    else
+      let winId = $WINDOWID
+    endif
+
     let wakeText = string(winInfo.topline) 
                \ . '?' . string(lastVisibleLine)
                \ . '?' . synIDattr(hlID('normal'), 'bg')
+               \ . '?' . synIDattr(hlID('CursorLine'), 'bg')
+               \ . '?' . winId
                \ . '?' . s:tempFile
 
     " Make an non-blocking start
