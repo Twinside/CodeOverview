@@ -52,7 +52,7 @@ class OverViewImage:
         	gtk.main_quit()
         	return
 
-        [begin, end, backColor, viewRectColor, winId, imageFile] = line.split("?")
+        [begin, end, backColor, viewRectColor, winId, winX, winY, imageFile] = line.split("?")
         self.beginning = int(begin)
         self.ending = int(end)
         self.updateImage(imageFile)

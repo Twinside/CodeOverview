@@ -12,6 +12,8 @@
 #include <sys/time.h>
 
 @implementation FileWatcher
+@synthesize window;
+
 - (void)pollDispatch
 {
     NSDictionary * arguments = 
@@ -70,7 +72,16 @@
 - (void)awakeFromNib
 {
     backColor = nil;
+    overColor = nil;
     continuePolling = YES;
+    NSDictionary * arguments = 
+    [[NSUserDefaults standardUserDefaults] 
+     volatileDomainForName:NSArgumentDomain];
+    
+    NSString* pid = [arguments objectForKey:@"p"];
+    
+    [window setTitle:pid];
+    
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT,0),
                    ^{[self pollDispatch];});
 }
@@ -120,19 +131,28 @@
         if (maxRetryCount-- <= 0) return;
         
         // there is some timing issue, if misread, retry.
-    } while (!parts || [parts count] < 4);
+    } while (!parts || [parts count] < 8);
 
     viewBegin = [[parts objectAtIndex:0] integerValue];
     viewEnd = [[parts objectAtIndex:1] integerValue];
     
+    [backColor release];
+    backColor = [[FileWatcher colorFromHexRGB:[parts objectAtIndex:2]] retain];
+    
+    [overColor release];
+    overColor = [[FileWatcher colorFromHexRGB:[parts objectAtIndex:3]] retain];
+    
+    // ignore 4th value
+    senderWindowXpos = [[parts objectAtIndex:5] integerValue];
+    senderWindowYpos = [[parts objectAtIndex:6] integerValue];
+    
     NSString *cleanString =
-        [[parts objectAtIndex:3]
+        [[parts objectAtIndex:[parts count] - 1]
             stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
     
     NSImage *img = [[NSImage alloc] initWithContentsOfFile:cleanString];
 
-    [backColor release];
-    backColor = [[FileWatcher colorFromHexRGB:[parts objectAtIndex:2]] retain];
+    
     dispatch_async(dispatch_get_main_queue(), ^{
         [self setImage:img];
         [img release];

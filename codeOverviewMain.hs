@@ -21,6 +21,7 @@ data OverOption = OverOption
       , overHiSize :: Int
       , overFiles :: [String]
       , overHighlighted :: [String]
+      , overErrFile :: Maybe String
       }
 
 defaultOption :: OverOption
@@ -35,6 +36,7 @@ defaultOption = OverOption
     , overTop = -1
     , overFiles = []
     , overHighlighted = []
+    , overErrFile = Nothing
     }
 
 pngIzeExtension :: FilePath -> FilePath
@@ -61,6 +63,7 @@ commonOption =
                                "Show progression and various information"
     , Option ['V'] ["version"] (NoArg (\o -> o{overVersion = True}))
                                "Show version number and various information"
+    , Option []    ["errfile"]  (ReqArg (\f o -> o {overErrFile = Just f}) "FILENAME") "Error lines"
     ]
 
 loadArgs :: [String] -> IO OverOption 
@@ -106,6 +109,16 @@ loadConf opts
         file <- readFile $ overConf opts
         return $ parseColorDef file
 
+loadErrorFile :: OverOption -> IO [(String, Int)]
+loadErrorFile opts = case overErrFile opts  of
+      Nothing -> return []
+      Just fName -> do
+        when (overVerbose opts)
+             (putStrLn $ "Loading '" ++ fName ++ "' as error line definition")
+        file <- readFile fName
+        return [(msg, read $ tail lineNum) 
+                        | (msg, lineNum) <- map (break (':' ==)) $ lines file ]
+
 savePngImage :: OverOption -> FilePath -> [[ViewColor]] -> IO ()
 savePngImage option path pixels
     | overTransparent option = savePng24BitAlpha path pixels
@@ -130,9 +143,11 @@ performTransformation option path = do
                                else ext
     codeDef <- codeDefOfExt option path fileExt
     colorDef <- loadConf option
+    errorLines <- loadErrorFile option
     let pixelList = createCodeOverview 
                         codeDef
                         colorDef
+                        errorLines
                         (overHighlighted option)
                         $ lines file
     if overTop option >= 0

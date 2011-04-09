@@ -13,16 +13,24 @@ typedef int EventFile;
 
 @interface FileWatcher : NSImageView {
     FSEventStreamRef fileWatcher;
+    NSWindow *window;
     
     NSInteger viewBegin;
     NSInteger viewEnd;
+    
+    NSInteger senderWindowXpos;
+    NSInteger senderWindowYpos;
+    
     NSColor  *backColor;
+    NSColor  *overColor;
     NSString *wakeFilePath;
-
+ 
     KQueue      watchQueue;
     EventFile   file;
     bool        continuePolling;
 }
+
+@property (assign) IBOutlet NSWindow *window;
 
 - (void)release;
 - (void)fileChanged;

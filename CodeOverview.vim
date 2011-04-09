@@ -41,6 +41,9 @@
 "       to update the view.
 "       (disabled by default)
 "
+"   let g:codeOverviewShowErrorLines = 0
+"       To disable error lines layered on the overview.
+"
 "   let g:codeOverviewMaxLineCount = 10000
 "       To avoid locking up vim, you can provide a maximum
 "       line count to avoid refresh for very huges file.
@@ -83,6 +86,11 @@ if v:version < 702
     finish
 endif
 
+
+if !exists('g:codeOverviewShowErrorLines')
+    let g:codeOverviewShowErrorLines = 1
+endif
+
 if !exists("g:code_overview_use_colorscheme")
 	let g:code_overview_use_colorscheme = 1
 endif
@@ -104,7 +112,7 @@ fun! ShowCodeOverviewParams() "{{{
     echo 's:friendProcess ' . s:friendProcess
     echo 's:overviewProcess ' . s:overviewProcess
     echo 's:colorFile' . s:colorFile
-    echo 's:errFile' . s:File
+    echo 's:errFile' . s:errFile
 endfunction "}}}
 
 " If we want to use the same color as the colorscheme,
@@ -122,6 +130,11 @@ fun! s:BuildColorConfFromColorScheme() "{{{
         \ ]
     
     call writefile(conf, s:colorFile)
+endfunction "}}}
+
+fun! s:UpdateColorScheme() "{{{
+    call s:BuildColorConfFromColorScheme()
+    call s:SnapshotFile()
 endfunction "}}}
 
 fun! s:PrepareParameters() "{{{
@@ -150,10 +163,6 @@ fun! s:PrepareParameters() "{{{
     let s:colorFile = s:tempDir . 'colorFile' . s:initPid
     let s:errFile = s:tempDir . 'errFile' . s:initPid
 
-    if g:code_overview_use_colorscheme
-        call s:BuildColorConfFromColorScheme()
-    endif 
-
     execute 'set wildignore=' . s:tempWildIgnore
 
     let s:preparedParameters = 1
@@ -169,7 +178,7 @@ fun! s:InitialInit() "{{{
        let s:friendProcess = '"' . globpath( &rtp, 'plugin/WpfOverview.exe' ) . '"'
        let s:overviewProcess = '"' . globpath( &rtp, 'plugin/codeoverview.exe' ) . '"'
     elseif has('mac')
-       let s:friendProcess = '"' . globpath( &rtp, 'plugin/CodeOverMac.app/Contents/MacOS/CodeOverMac' ) . '" -p '
+       let s:friendProcess = '"' . globpath( &rtp, 'plugin/CodeOverMac.app' ) . '"'
        let s:overviewProcess = '"' . globpath( &rtp, 'plugin/codeoverview.osx' ) . '"'
     else
        let s:friendProcess = '"' . globpath( &rtp, 'plugin/gtkOverview.py' ) . '"'
@@ -183,6 +192,7 @@ fun! s:RemoveTempsFile() "{{{
     call delete( s:wakeFile )
     call delete( s:tempFile )
     call delete( s:tempCommandFile )
+    call delete( s:errFile )
 
     if g:code_overview_use_colorscheme
         call delete( s:colorFile )
@@ -216,9 +226,18 @@ fun! s:LaunchFriendProcess() "{{{
 
     call s:PrepareParameters()
 
-    if has("win32")
+    if g:code_overview_use_colorscheme
+        call s:BuildColorConfFromColorScheme()
+    endif
+
+    call s:SnapshotFile()
+
+    if has('win32')
         call system('cmd /s /c "start "CodeOverview Launcher" /b '
                 \ . s:friendProcess . ' ' . s:initPid . '"')
+    elseif has('mac')
+        echo 'open -a ' . s:friendProcess . ' -p ' . s:initPid 
+        call system('open -a ' . s:friendProcess . ' --args -p ' . s:initPid )
     else
         call system(s:friendProcess . ' ' . s:initPid . ' &')
     endif
@@ -234,16 +253,20 @@ fun! s:LaunchFriendProcess() "{{{
     command! SnapshotFile call s:SnapshotFile()
 
     call s:SnapshotFile()
+
 endfunction "}}}
 
 " Kind could be 'e' for error, 'w' for
 " warning 'i' for info...
-fun! s:DumpErrorLines(kindPrefix) "{{{
+fun! s:DumpErrorLines() "{{{
 	let outLines = []
+	let currentBuffer = bufnr('%')
 
 	for d in getqflist()
-		call add(outLines, a:kindPrefix . string(d))
-   endfor
+		if d.bufnr == currentBuffer
+            call add(outLines, d.type . ':' . string(d.lnum))
+        endif
+    endfor
    
    call writefile(outLines, s:errFile)
 endfunction "}}}
@@ -273,22 +296,26 @@ fun! s:SnapshotFile() "{{{
     let winInfo = winsaveview()
     let research = getreg('/')
 
+    " Generate the new image file
+    let commandLine = s:overviewProcess . ' -v -o "' . s:tempFile . '" ' 
+
     " If we search an identifier
     if research =~ '\\<.*\\>'
         " Add a switch to let the image generator make it.
-        let highlighted = ' --hi ' . substitute( research, '\\<\(.*\)\\>', '\1', '' )
-    else
-        let highlighted = ''
+        let commandLine = commandLine . ' --hi ' . substitute( research, '\\<\(.*\)\\>', '\1', '' ) . ' '
     endif
 
-    " Generate the new image file
-    if g:code_overview_use_colorscheme
-        let commandLine = s:overviewProcess . ' -v --conf ' . s:colorFile . ' -o "' . s:tempFile . '" '
-                                \ . highlighted . " " . filename
-    else
-        let commandLine = s:overviewProcess . ' -v -o "' . s:tempFile . '" '
-                                \ . highlighted . " " . filename
+    " Dump error lines
+    if g:codeOverviewShowErrorLines
+    	call s:DumpErrorLines()
+    	let commandLine  = commandLine . ' --errfile ' . s:errFile
     endif
+
+    if g:code_overview_use_colorscheme
+        let commandLine = commandLine . ' --conf ' . s:colorFile . ' '
+    endif
+
+    let commandLine = commandLine . " " . filename
 
     if !has('win32')
         let header = '#!/bin/sh'
@@ -296,7 +323,7 @@ fun! s:SnapshotFile() "{{{
     	let header = ''
     endif
 
-    if has('win32')
+    if has('win32') || has('mac')
        let winId = 0
     else
       let winId = $WINDOWID
@@ -304,9 +331,11 @@ fun! s:SnapshotFile() "{{{
 
     let wakeText = string(winInfo.topline) 
                \ . '?' . string(lastVisibleLine)
-               \ . '?' . synIDattr(hlID('normal'), 'bg')
+               \ . '?' . synIDattr(hlID('Normal'), 'bg')
                \ . '?' . synIDattr(hlID('CursorLine'), 'bg')
                \ . '?' . winId
+               \ . '?' . string(getwinposx())
+               \ . '?' . string(getwinposy())
                \ . '?' . s:tempFile
 
     " Make an non-blocking start
@@ -349,6 +378,7 @@ fun! s:PutCodeOverviewHook() "{{{
         au FilterWritePost * call s:SnapshotFile()
         au StdinReadPost * call s:SnapshotFile()
         au FileChangedShellPost * call s:SnapshotFile()
+        au QuickFixCmdPost * call s:SnapshotFile()
     augroup END
 endfunction "}}}
 
@@ -366,6 +396,7 @@ if s:friendProcess == '""' || s:overviewProcess == '""'
 endif
 
 au VimLeavePre * call s:StopFriendProcess()
+au ColorScheme * call s:UpdateColorScheme()
 
 command! CodeOverviewNoAuto echo 'CodeOverview Friend Process not started!'
 command! CodeOverviewAuto echo 'CodeOverview Friend Process not started!'

@@ -8,10 +8,10 @@ module CodeOverview(-- * Types
                    , haskellCodeDef
                    , ocamlCodeDef
                    , rubyCodeDef
-                   , shellLikeCodeDef 
-                   , pythonCodeDef 
+                   , shellLikeCodeDef
+                   , pythonCodeDef
                    , htmlCodeDef
-                   , emptyCodeDef 
+                   , emptyCodeDef
 
                    -- * Colorsets
                    , defaultColorDef
@@ -25,7 +25,7 @@ module CodeOverview(-- * Types
 
 import Data.Char
 import Data.Maybe( fromJust, isJust )
-import Data.List( foldl', isPrefixOf )
+import Data.List( foldl', isPrefixOf, mapAccumL, sortBy )
 import qualified Data.Set as Set
 
 --------------------------------------------------
@@ -70,6 +70,10 @@ data    ColorDef = ColorDef
     , viewColor      :: ViewColor
     , keywordColor   :: ViewColor
     , typeColor      :: ViewColor
+
+    , errorLineColor :: ViewColor
+    , warningLineColor :: ViewColor
+    , infoLineColor :: ViewColor
     }
     deriving Show
 
@@ -84,6 +88,10 @@ defaultColorDef = ColorDef
     , viewColor      = (200,200,255,255)
     , keywordColor   = (100,100,255,255)
     , typeColor      = (100,100,255,255)
+
+    , errorLineColor   = (255,   0,   0, 128)
+    , warningLineColor = (  0, 255, 255, 128)
+    , infoLineColor    = (  0,   0, 255, 128)
     }
 
 --------------------------------------------------
@@ -146,6 +154,14 @@ updateColorDef def ("keyword",val) =
     maybe def (\c -> def { keywordColor = c }) $ parseHtmlColor val
 updateColorDef def ("type",val) =
     maybe def (\c -> def { typeColor = c }) $ parseHtmlColor val
+
+updateColorDef def ("errorLine",val) =
+    maybe def (\c -> def { errorLineColor = c }) $ parseHtmlColor val
+updateColorDef def ("warningLine",val) =
+    maybe def (\c -> def { warningLineColor = c }) $ parseHtmlColor val
+updateColorDef def ("infoLine",val) =
+    maybe def (\c -> def { infoLineColor = c }) $ parseHtmlColor val
+
 updateColorDef def _ = def
 
 --------------------------------------------------
@@ -383,6 +399,8 @@ parserList highlightDef codeDef colorDef =
       , charEater codeDef colorDef
       ]
 
+-- | Make all the lines to the same length, fill the void
+-- with emptyColor
 normalizePixelList :: ColorDef -> [[ViewColor]] -> [[ViewColor]]
 normalizePixelList colorDef lst = map normalize $ zip lst sizes
     where sizes = map length lst
@@ -395,6 +413,14 @@ normalizePixelList colorDef lst = map normalize $ zip lst sizes
 doubleSize :: [[ViewColor]] -> [[ViewColor]]
 doubleSize = concatMap (\a -> [double a, double a])
     where double = concatMap $ \a -> [a,a]
+
+alphaBlend :: ViewColor -> ViewColor -> ViewColor
+alphaBlend  (r, g, b, a) (r', g', b', a') = (rf, gf, bf, af)
+    where coef = 255 - a'
+          rf = (r * coef + r' * a') `quot` 256
+          gf = (g * coef + g' * a') `quot` 256
+          bf = (b * coef + b' * a') `quot` 256
+          af = (a * coef + a' * a') `quot` 256
 
 -- | Draw a rectangle with alpha blending over the generated image.
 addOverMask :: ColorDef -> (Int, Int) -> (Int, Int) -> [[ViewColor]]
@@ -416,9 +442,38 @@ addOverMask colorDef (x,y) (width, height) pixels = prelude ++ map lineColoratio
               , (a * av) `quot` 256
               )
 
-createCodeOverview :: CodeDef -> ColorDef -> [String] -> [String] -> [[ViewColor]]
-createCodeOverview codeDef colorDef highlighted =
-        normalizePixelList colorDef
+-- | Add error layer on top of a generated image.
+-- Work best if all lines are of the same length
+addOverLines :: ColorDef -> [(String, Int)] -> [[ViewColor]] -> [[ViewColor]]
+addOverLines colordef errorList = snd . mapAccumL lineMarker sortedErrors . zip [1..]
+  where sortedErrors = sortBy (\(_,line) (_,line') -> compare line line') errorList
+        lineMarker [] (_, e) = ([], e)
+        lineMarker fullList@((hiKind, lineNumber):xs) element@(currLine, e)
+          | lineNumber < currLine = lineMarker xs element
+          | lineNumber > currLine = (fullList, e)
+          -- lineNumber == currLine
+          | otherwise = (xs, highlightLine hiKind e)
+
+        errorColor = errorLineColor colordef
+        warningColor = warningLineColor colordef
+        infoColor = infoLineColor colordef
+
+        highlightLine ('i':_) line = map (\a -> alphaBlend a infoColor) line
+        highlightLine ('I':_) line = map (\a -> alphaBlend a infoColor) line
+        highlightLine ('w':_) line = map (\a -> alphaBlend a warningColor) line
+        highlightLine ('W':_) line = map (\a -> alphaBlend a warningColor) line
+        highlightLine _ line = map (\a -> alphaBlend a errorColor) line
+
+-- | Main function to create an overview of a parsed file
+createCodeOverview :: CodeDef        -- ^ Language definition used to put some highlight/color
+                   -> ColorDef       -- ^ Colors to be used during the process.
+                   -> [(String,Int)] -- ^ Error line definition, to put an highlight on some lines.
+                   -> [String]       -- ^ Identifier to be 'highlighted', to highlight a search
+                   -> [String]       -- ^  The lines from the file
+                   -> [[ViewColor]]
+createCodeOverview codeDef colorDef errorLines highlighted =
+        addOverLines colorDef errorLines
+      . normalizePixelList colorDef
       . (\f -> f [])
       . fst
       . foldl' parse (id, Nothing)
