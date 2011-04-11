@@ -119,17 +119,35 @@ endfunction "}}}
 " we must prepare a configuration file with some infos.
 fun! s:BuildColorConfFromColorScheme() "{{{
 	let conf =
-        \ [ "comment=" . synIDattr(hlID('comment'), 'fg')    
-        \ , "normal=" . synIDattr(hlID('normal'), 'fg')
-        \ , "maj=" . synIDattr(hlID('normal'), 'fg')
-        \ , "empty=" . synIDattr(hlID('normal'), 'bg')    
-        \ , "string=" . synIDattr(hlID('string'), 'fg')    
-        \ , "keyword=" . synIDattr(hlID('keyword'), 'fg')    
-        \ , "type=" . synIDattr(hlID('type'), 'fg')    
-        \ , "view=" . synIDattr(hlID('cursorline'), 'bg')    
+        \ [ ["comment"     , 'comment'     , 'fg']
+        \ , ["normal"      , 'normal'      , 'fg']
+        \ , ["maj"         , 'normal'      , 'fg']
+        \ , ["empty"       , 'normal'      , 'bg']
+        \ , ["string"      , 'string'      , 'fg']
+        \ , ["keyword"     , 'keyword'     , 'fg']
+        \ , ["type"        , 'type'        , 'fg']
+        \ , ["view"        , 'cursorline'  , 'bg']
+        \ , ["typedef"     , 'Typedef'     , 'fg']
+        \ , ["include"     , 'Include'     , 'fg']
+        \
+        \ , ["conditional" , 'Conditional' , 'fg']
+        \ , ["repeat"      , 'Repeat'      , 'fg']
+        \ , ["structure"   , 'Structure'   , 'fg']
+        \ , ["statement"   , 'Statement'   , 'fg']
+        \ , ["preproc"     , 'Preproc'     , 'fg']
+        \
+        \ , ["label"       , 'Label'       , 'fg']
+        \ , ["macro"       , 'Macro'       , 'fg']
         \ ]
     
-    call writefile(conf, s:colorFile)
+    let writtenConf = []
+
+    for [progval, vimAttr, info] in conf
+        let foundColor = synIDattr(synIDtrans(hlID(vimAttr)), info)
+        call add( writtenConf, progval . '=' . foundColor )
+    endfor
+
+    call writefile(writtenConf, s:colorFile)
 endfunction "}}}
 
 fun! s:UpdateColorScheme() "{{{

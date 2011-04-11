@@ -5,17 +5,21 @@ import qualified Data.Map as Map
 import CodeOverviewGenerator.Language
 import CodeOverviewGenerator.Color
 
-                {-, keywordList = Set.fromList-}
-                   {-[ "let", "in", "where", "class", "instance"-}
-                   {-, "data", "type", "newtype", "module", "import"-}
-                   {-, "infixl", "infixr", "if", "then", "else", "qualified"-}
-                   {-]-}
-                {-, typeList = Set.fromList-}
-                   {-[ "Bool", "Int", "Integer", "Float"-}
-                   {-, "Double", "Set", "Map", "Char", "String" ]-}
+hStructure, hImport, hTypedef, hStatement, hConditional,
+    hTypes, hModule :: [String]
+hModule = ["module"]
+hStructure = ["class", "data", "deriving", "instance", "default", "where"]
+hImport = ["import"]
+hTypedef = ["type", "newtype"]
+hStatement = ["do", "case", "of", "let", "in"]
+hConditional = ["if", "then", "else"]
+hTypes = ["Int", "Integer", "Char", "Bool", "Float"
+         , "Double", "IO", "Void", "Addr", "Array"
+         , "String", "Maybe", "Either", "Ratio", "Complex"
+         , "Ordering", "IOError", "IOResult", "ExitCode"]
 
 haskellCodeDef :: ColorDef -> CodeDef
-haskellCodeDef _colors = def
+haskellCodeDef colors = def
     where def = CodeDef
                 { lineComm = Just "--"
                 , multiLineCommBeg = Just "{-"
@@ -23,6 +27,12 @@ haskellCodeDef _colors = def
                 , tabSpace = 4
                 , identParser = identWithPrime
                 , strParser = Just $ stringParser False def
-                , specialIdentifier = Map.empty
+                , specialIdentifier = Map.fromList $
+                    prepareKeywords (hModule ++ hStructure) (structureColor colors)
+                 ++ prepareKeywords hImport (includeColor colors)
+                 ++ prepareKeywords hTypedef (typedefColor colors)
+                 ++ prepareKeywords hStatement (statementColor colors)
+                 ++ prepareKeywords hConditional (conditionalColor colors)
+                 ++ prepareKeywords hTypes (typeColor colors)
                 }
 

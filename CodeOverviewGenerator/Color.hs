@@ -28,6 +28,8 @@ data    ColorDef = ColorDef
     , statementColor   :: ViewColor
     , preprocColor     :: ViewColor
     , macroColor       :: ViewColor
+    , typedefColor     :: ViewColor
+    , includeColor     :: ViewColor
 
     , errorLineColor :: ViewColor
     , warningLineColor :: ViewColor
@@ -57,6 +59,8 @@ defaultColorDef = ColorDef
     , statementColor   = (  0,   0, 255, 255)
     , preprocColor     = (  0,   0, 255, 255)
     , macroColor       = (  0,   0, 255, 255)
+    , typedefColor     = (  0,   0,   0, 255)
+    , includeColor     = (  0,   0,   0, 255)
 
     , errorLineColor   = (255,   0,   0, 200)
     , warningLineColor = (  0, 255, 255, 200)
@@ -122,6 +126,26 @@ updateColorDef def ("keyword",val) =
     maybe def (\c -> def { keywordColor = c }) $ parseHtmlColor val
 updateColorDef def ("type",val) =
     maybe def (\c -> def { typeColor = c }) $ parseHtmlColor val
+
+updateColorDef def ("label", val) =
+    maybe def (\c -> def { labelColor = c }) $ parseHtmlColor val
+updateColorDef def ("conditional", val) =
+    maybe def (\c -> def { conditionalColor = c }) $ parseHtmlColor val
+updateColorDef def ("repeat", val) =
+    maybe def (\c -> def { repeatColor = c }) $ parseHtmlColor val
+updateColorDef def ("structure", val) =
+    maybe def (\c -> def { structureColor = c }) $ parseHtmlColor val
+updateColorDef def ("statement", val) =
+    maybe def (\c -> def { statementColor = c }) $ parseHtmlColor val
+updateColorDef def ("preproc", val) =
+    maybe def (\c -> def { preprocColor = c }) $ parseHtmlColor val
+updateColorDef def ("macro", val) =
+    maybe def (\c -> def { macroColor = c }) $ parseHtmlColor val
+updateColorDef def ("typedef", val) =
+    maybe def (\c -> def { typedefColor = c }) $ parseHtmlColor val
+updateColorDef def ("include", val) =
+    maybe def (\c -> def { includeColor = c }) $ parseHtmlColor val
+
 
 updateColorDef def ("errorLine",val) =
     maybe def (\c -> def { errorLineColor = c }) $ parseHtmlColor val
