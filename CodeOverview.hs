@@ -89,9 +89,9 @@ defaultColorDef = ColorDef
     , keywordColor   = (100,100,255,255)
     , typeColor      = (100,100,255,255)
 
-    , errorLineColor   = (255,   0,   0, 128)
-    , warningLineColor = (  0, 255, 255, 128)
-    , infoLineColor    = (  0,   0, 255, 128)
+    , errorLineColor   = (255,   0,   0, 200)
+    , warningLineColor = (  0, 255, 255, 200)
+    , infoLineColor    = (  0,   0, 255, 200)
     }
 
 --------------------------------------------------
@@ -445,24 +445,33 @@ addOverMask colorDef (x,y) (width, height) pixels = prelude ++ map lineColoratio
 -- | Add error layer on top of a generated image.
 -- Work best if all lines are of the same length
 addOverLines :: ColorDef -> [(String, Int)] -> [[ViewColor]] -> [[ViewColor]]
+addOverLines _ [] = id
 addOverLines colordef errorList = snd . mapAccumL lineMarker sortedErrors . zip [1..]
   where sortedErrors = sortBy (\(_,line) (_,line') -> compare line line') errorList
-        lineMarker [] (_, e) = ([], e)
+        lineMarker [] (_, e) = ([], emptyConcat ++ e)
         lineMarker fullList@((hiKind, lineNumber):xs) element@(currLine, e)
           | lineNumber < currLine = lineMarker xs element
-          | lineNumber > currLine = (fullList, e)
+          | lineNumber > currLine = (fullList, emptyConcat ++ e)
           -- lineNumber == currLine
           | otherwise = (xs, highlightLine hiKind e)
 
         errorColor = errorLineColor colordef
         warningColor = warningLineColor colordef
         infoColor = infoLineColor colordef
+        marginColor = highlightColor colordef
 
-        highlightLine ('i':_) line = map (\a -> alphaBlend a infoColor) line
-        highlightLine ('I':_) line = map (\a -> alphaBlend a infoColor) line
-        highlightLine ('w':_) line = map (\a -> alphaBlend a warningColor) line
-        highlightLine ('W':_) line = map (\a -> alphaBlend a warningColor) line
-        highlightLine _ line = map (\a -> alphaBlend a errorColor) line
+        errorLeftMargin = 15
+
+        emptyConcat = replicate errorLeftMargin (emptyColor colordef) ++ [marginColor]
+        infoConcat = replicate errorLeftMargin infoColor ++ [marginColor]
+        warningConcat =  replicate errorLeftMargin warningColor ++ [marginColor]
+        errorConcat =  replicate errorLeftMargin errorColor ++ [marginColor]
+
+        highlightLine ('i':_) line = infoConcat ++ map (\a -> alphaBlend a infoColor) line
+        highlightLine ('I':_) line = infoConcat ++ map (\a -> alphaBlend a infoColor) line
+        highlightLine ('w':_) line = warningConcat ++ map (\a -> alphaBlend a warningColor) line
+        highlightLine ('W':_) line = warningConcat ++ map (\a -> alphaBlend a warningColor) line
+        highlightLine _ line = errorConcat ++ map (\a -> alphaBlend a errorColor) line
 
 -- | Main function to create an overview of a parsed file
 createCodeOverview :: CodeDef        -- ^ Language definition used to put some highlight/color
