@@ -1,4 +1,4 @@
-import CodeOverview
+import CodeOverviewGenerator.CodeOverview
 import Png
 
 import Control.Monad( when )

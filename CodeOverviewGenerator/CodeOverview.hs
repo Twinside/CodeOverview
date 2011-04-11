@@ -1,4 +1,5 @@
-module CodeOverview(-- * Types 
+module CodeOverviewGenerator.CodeOverview ( 
+                   -- * Types 
                      CodeDef
                    , ColorDef
                    , ViewColor
@@ -28,160 +29,15 @@ import Data.Maybe( fromJust, isJust )
 import Data.List( foldl', isPrefixOf, mapAccumL, sortBy )
 import qualified Data.Set as Set
 
---------------------------------------------------
-----            Generation types
---------------------------------------------------
-type ViewColor = (Int, Int, Int, Int)
-newtype NextParse = NextParse ([ViewColor], Parser)
-type ParseResult = Either NextParse (Maybe ([ViewColor], String))
-type Parser = String -> ParseResult
-
--- | Define a language used by the image generator to put
--- some colors in it.
-data    CodeDef = CodeDef
-    { -- | Beginning marker for mono line market
-      lineComm         :: Maybe String  
-      -- | Beginning marker for multilines comments, like
-      -- \'/*\' in C or \'{-\' in Haskell
-    , multiLineCommBeg :: Maybe String
-      -- | End  marker for multiline comments, like
-      -- \'*/\' in C or \'-}\' in Haskell
-    , multiLineCommEnd :: Maybe String
-      -- | Definition for identifier for the current language.
-    , identParser :: Char -> Int -> Bool
-      -- | Definition for strings in the current language.
-    , strParser :: Maybe (ColorDef -> Parser)
-      -- | How we must transform tab into space.
-    , tabSpace :: Int
-      -- | Keyword list, for better coloration.
-    , keywordList :: Set.Set String
-      -- | Type list, for better coloration.
-    , typeList :: Set.Set String
-    }
-
--- | Color configuration for image generation.
-data    ColorDef = ColorDef
-    { commentColor   :: ViewColor
-    , stringColor    :: ViewColor
-    , normalColor    :: ViewColor
-    , highlightColor :: ViewColor
-    , majColor       :: ViewColor
-    , emptyColor     :: ViewColor
-    , viewColor      :: ViewColor
-    , keywordColor   :: ViewColor
-    , typeColor      :: ViewColor
-
-    , errorLineColor :: ViewColor
-    , warningLineColor :: ViewColor
-    , infoLineColor :: ViewColor
-    }
-    deriving Show
-
-defaultColorDef :: ColorDef
-defaultColorDef = ColorDef
-    { commentColor   = (100,155,100,255)
-    , normalColor    = (128,128,128,255)
-    , stringColor    = (100,100,155,255)
-    , highlightColor = (200,200,100,255)
-    , majColor       = (  0,  0,  0,255)
-    , emptyColor     = (255,255,255,  0)
-    , viewColor      = (200,200,255,255)
-    , keywordColor   = (100,100,255,255)
-    , typeColor      = (100,100,255,255)
-
-    , errorLineColor   = (255,   0,   0, 200)
-    , warningLineColor = (  0, 255, 255, 200)
-    , infoLineColor    = (  0,   0, 255, 200)
-    }
-
---------------------------------------------------
-----            Color conf parsing
---------------------------------------------------
-readHex :: Char -> Int
-readHex c | 'a' <= c && c <= 'f' = fromEnum c - fromEnum 'a' + 10
-          | 'A' <= c && c <= 'F' = fromEnum c - fromEnum 'A' + 10
-          | '0' <= c && c <= '9' = read [c]
-          | otherwise = 0
-
-split :: Char -> String -> [String]
-split _ "" =  []
--- Somehow GHC doesn't detect the selector thunks in the below code,
--- so s' keeps a reference to the first line via the pair and we have
--- a space leak (cf. #4334).
--- So we need to make GHC see the selector thunks with a trick.
-split c s = cons (case break (== c) s of
-        (l, s') -> (l, case s' of
-                         []     -> []
-                         _:s'' -> split c s''))
-  where cons ~(h, t) = h : t
-
-parseHtmlColor :: String -> Maybe ViewColor
-parseHtmlColor ['#', r1, r2, g1, g2, b1, b2, a1, a2] = Just (r, g, b, a)
-    where r = readHex r1 * 16 + readHex r2
-          g = readHex g1 * 16 + readHex g2
-          b = readHex b1 * 16 + readHex b2
-          a = readHex a1 * 16 + readHex a2
-parseHtmlColor ['#', r1, r2, g1, g2, b1, b2] = Just (r, g, b, 255)
-    where r = readHex r1 * 16 + readHex r2
-          g = readHex g1 * 16 + readHex g2
-          b = readHex b1 * 16 + readHex b2
-parseHtmlColor _ = Nothing
-
-parseColorDef :: String -> ColorDef
-parseColorDef txt = foldl' updateColorDef defaultColorDef vals
-    where cleanSecondPart (a, []) = (a, [])
-          cleanSecondPart (a, _:xs) = (a, xs)
-          vals = map (cleanSecondPart . break ('=' ==)) 
-               . concatMap (split ';')
-               $ lines txt
-
-updateColorDef :: ColorDef -> (String, String) -> ColorDef
-updateColorDef def ("comment",val) =
-    maybe def (\c -> def { commentColor = c }) $ parseHtmlColor val
-updateColorDef def ("normal",val) =
-    maybe def (\c -> def { normalColor = c }) $ parseHtmlColor val
-updateColorDef def ("string",val) =
-    maybe def (\c -> def { stringColor = c }) $ parseHtmlColor val
-updateColorDef def ("highlight",val) =
-    maybe def (\c -> def { highlightColor = c }) $ parseHtmlColor val
-updateColorDef def ("maj",val) =
-    maybe def (\c -> def { majColor = c }) $ parseHtmlColor val
-updateColorDef def ("empty",val) =
-    maybe def (\c -> def { emptyColor = c }) $ parseHtmlColor val
-updateColorDef def ("view",val) =
-    maybe def (\c -> def { viewColor = c }) $ parseHtmlColor val
-updateColorDef def ("keyword",val) =
-    maybe def (\c -> def { keywordColor = c }) $ parseHtmlColor val
-updateColorDef def ("type",val) =
-    maybe def (\c -> def { typeColor = c }) $ parseHtmlColor val
-
-updateColorDef def ("errorLine",val) =
-    maybe def (\c -> def { errorLineColor = c }) $ parseHtmlColor val
-updateColorDef def ("warningLine",val) =
-    maybe def (\c -> def { warningLineColor = c }) $ parseHtmlColor val
-updateColorDef def ("infoLine",val) =
-    maybe def (\c -> def { infoLineColor = c }) $ parseHtmlColor val
-
-updateColorDef def _ = def
+import CodeOverviewGenerator.Color
+import CodeOverviewGenerator.Language
 
 --------------------------------------------------
 ----            Language definitions
 --------------------------------------------------
 cCodeDef, haskellCodeDef, ocamlCodeDef,
              rubyCodeDef, shellLikeCodeDef,
-             htmlCodeDef, emptyCodeDef,
-             pythonCodeDef :: CodeDef
-
-emptyCodeDef = CodeDef
-            { lineComm = Nothing
-            , multiLineCommBeg = Nothing
-            , multiLineCommEnd = Nothing
-            , tabSpace = 4
-            , identParser = basicIdent
-            , strParser = Nothing
-            , keywordList = Set.empty
-            , typeList = Set.empty
-            }
+             htmlCodeDef, pythonCodeDef :: CodeDef
 
 htmlCodeDef = emptyCodeDef
             { multiLineCommBeg = Just "<!--"
@@ -268,14 +124,6 @@ ocamlCodeDef = CodeDef
 identWithPrime :: Char -> Int -> Bool
 identWithPrime c 0 = isAlpha c
 identWithPrime c _ = isAlphaNum c || c == '\''
-
-
--- | Basic identifier parser parser the [a-zA-Z][a-zA-Z0-9]*
--- identifier
-basicIdent :: Char -> Int -> Bool
-basicIdent c 0 = isAlpha c
-basicIdent c _ = isAlphaNum c
-
 
 -- | Parse a string, ignoring the \\\"
 stringParser :: Bool -> CodeDef -> ColorDef -> Parser
