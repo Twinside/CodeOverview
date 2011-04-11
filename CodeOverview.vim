@@ -135,6 +135,8 @@ fun! s:BuildColorConfFromColorScheme() "{{{
         \ , ["structure"   , 'Structure'   , 'fg']
         \ , ["statement"   , 'Statement'   , 'fg']
         \ , ["preproc"     , 'Preproc'     , 'fg']
+        \ , ["exception"   , 'Exception'   , 'fg']
+        \ , ["operator"    , 'Operator'    , 'fg']
         \
         \ , ["label"       , 'Label'       , 'fg']
         \ , ["macro"       , 'Macro'       , 'fg']

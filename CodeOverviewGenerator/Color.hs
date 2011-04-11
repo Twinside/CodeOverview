@@ -29,6 +29,8 @@ data    ColorDef = ColorDef
     , preprocColor     :: ViewColor
     , macroColor       :: ViewColor
     , typedefColor     :: ViewColor
+    , exceptionColor   :: ViewColor
+    , operatorColor    :: ViewColor
     , includeColor     :: ViewColor
 
     , errorLineColor :: ViewColor
@@ -61,6 +63,8 @@ defaultColorDef = ColorDef
     , macroColor       = (  0,   0, 255, 255)
     , typedefColor     = (  0,   0,   0, 255)
     , includeColor     = (  0,   0,   0, 255)
+    , exceptionColor   = (  0,   0,   0, 255)
+    , operatorColor    = (  0,   0,   0, 255)
 
     , errorLineColor   = (255,   0,   0, 200)
     , warningLineColor = (  0, 255, 255, 200)
@@ -145,6 +149,10 @@ updateColorDef def ("typedef", val) =
     maybe def (\c -> def { typedefColor = c }) $ parseHtmlColor val
 updateColorDef def ("include", val) =
     maybe def (\c -> def { includeColor = c }) $ parseHtmlColor val
+updateColorDef def ("exception", val) =
+    maybe def (\c -> def { exceptionColor = c }) $ parseHtmlColor val
+updateColorDef def ("operator", val) =
+    maybe def (\c -> def { operatorColor = c }) $ parseHtmlColor val
 
 
 updateColorDef def ("errorLine",val) =
