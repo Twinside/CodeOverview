@@ -2,6 +2,7 @@ module CodeOverviewGenerator.Color( ColorDef(..)
                                   , ViewColor
                                   , defaultColorDef
                                   , parseColorDef
+                                  , prepareKeywords
                                   ) where
 
 import Data.List( foldl' )
@@ -20,11 +21,22 @@ data    ColorDef = ColorDef
     , keywordColor   :: ViewColor
     , typeColor      :: ViewColor
 
+    , labelColor       :: ViewColor
+    , conditionalColor :: ViewColor
+    , repeatColor      :: ViewColor
+    , structureColor   :: ViewColor
+    , statementColor   :: ViewColor
+    , preprocColor     :: ViewColor
+    , macroColor       :: ViewColor
+
     , errorLineColor :: ViewColor
     , warningLineColor :: ViewColor
     , infoLineColor :: ViewColor
     }
     deriving Show
+
+prepareKeywords :: [String] -> ViewColor -> [(String, ViewColor)]
+prepareKeywords lst c = map (\s -> (s,c)) lst
 
 defaultColorDef :: ColorDef
 defaultColorDef = ColorDef
@@ -37,6 +49,14 @@ defaultColorDef = ColorDef
     , viewColor      = (200,200,255,255)
     , keywordColor   = (100,100,255,255)
     , typeColor      = (100,100,255,255)
+
+    , labelColor       = (  0,   0, 255, 255)
+    , conditionalColor = (  0,   0, 255, 255)
+    , repeatColor      = (  0,   0, 255, 255)
+    , structureColor   = (  0,   0, 255, 255)
+    , statementColor   = (  0,   0, 255, 255)
+    , preprocColor     = (  0,   0, 255, 255)
+    , macroColor       = (  0,   0, 255, 255)
 
     , errorLineColor   = (255,   0,   0, 200)
     , warningLineColor = (  0, 255, 255, 200)

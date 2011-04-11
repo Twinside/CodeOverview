@@ -1,4 +1,12 @@
 import CodeOverviewGenerator.CodeOverview
+import CodeOverviewGenerator.Language
+import CodeOverviewGenerator.Language.C
+import CodeOverviewGenerator.Language.Ocaml
+import CodeOverviewGenerator.Language.Haskell
+import CodeOverviewGenerator.Language.Python
+import CodeOverviewGenerator.Language.Shell
+import CodeOverviewGenerator.Language.Ruby
+import CodeOverviewGenerator.Language.Html
 import Png
 
 import Control.Monad( when )
@@ -76,7 +84,7 @@ loadArgs args =
          (opts, file, _) -> return $ 
              (foldr (\f opt -> f opt) defaultOption opts){ overFiles = file }
              
-extensionAssociation :: [(String, (String, CodeDef))]
+extensionAssociation :: [(String, (String, ColorDef -> CodeDef))]
 extensionAssociation =
     [ (".hs"    , ("haskell"      , haskellCodeDef))
     , (".c"     , ("C"            , cCodeDef))
@@ -93,9 +101,9 @@ extensionAssociation =
     , (".fs"    , ("F#"           , ocamlCodeDef))
     , (".fsi"   , ("F#"           , ocamlCodeDef))
     , (".py"    , ("Python"       , pythonCodeDef))
-    , (".sh"    , ("Shell Script" , shellLikeCodeDef))
-    , ("Makefile", ("Shell Script" , shellLikeCodeDef))
-    , (".rb"    , ("Rubyt"        , rubyCodeDef))
+    , (".sh"    , ("Shell Script" , shellCodeDef))
+    , ("Makefile", ("Shell Script" , shellCodeDef))
+    , (".rb"    , ("Ruby"         , rubyCodeDef))
     , (".html"  , ("HTML"         , htmlCodeDef))
     , (".htm"   , ("HTML"         , htmlCodeDef))
     , (".xml"   , ("XML"          , htmlCodeDef))
@@ -126,9 +134,9 @@ savePngImage option path pixels
         where toRgb pixelsList =
                   [map (\(a,b,c,_) -> (a,b,c)) line | line <- pixelsList]
 
-codeDefOfExt :: OverOption -> String -> String -> IO CodeDef
+codeDefOfExt :: OverOption -> String -> String -> IO (ColorDef -> CodeDef)
 codeDefOfExt option path extension =
-    maybe (return emptyCodeDef) 
+    maybe (return $ const emptyCodeDef) 
           (\(name, code) -> do
               when (overVerbose option)
                    (putStrLn $ "Choosing " ++ name ++ " parser for " ++ path)
@@ -145,7 +153,7 @@ performTransformation option path = do
     colorDef <- loadConf option
     errorLines <- loadErrorFile option
     let pixelList = createCodeOverview 
-                        codeDef
+                        (codeDef colorDef)
                         colorDef
                         errorLines
                         (overHighlighted option)

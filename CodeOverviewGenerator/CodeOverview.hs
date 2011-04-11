@@ -4,16 +4,6 @@ module CodeOverviewGenerator.CodeOverview (
                    , ColorDef
                    , ViewColor
 
-                   -- * Defined languages
-                   , cCodeDef
-                   , haskellCodeDef
-                   , ocamlCodeDef
-                   , rubyCodeDef
-                   , shellLikeCodeDef
-                   , pythonCodeDef
-                   , htmlCodeDef
-                   , emptyCodeDef
-
                    -- * Colorsets
                    , defaultColorDef
                    , parseColorDef
@@ -27,122 +17,14 @@ module CodeOverviewGenerator.CodeOverview (
 import Data.Char
 import Data.Maybe( fromJust, isJust )
 import Data.List( foldl', isPrefixOf, mapAccumL, sortBy )
-import qualified Data.Set as Set
+import qualified Data.Map as Map
 
 import CodeOverviewGenerator.Color
 import CodeOverviewGenerator.Language
 
 --------------------------------------------------
-----            Language definitions
---------------------------------------------------
-cCodeDef, haskellCodeDef, ocamlCodeDef,
-             rubyCodeDef, shellLikeCodeDef,
-             htmlCodeDef, pythonCodeDef :: CodeDef
-
-htmlCodeDef = emptyCodeDef
-            { multiLineCommBeg = Just "<!--"
-            , multiLineCommEnd = Just "-->"
-            }
-
-shellLikeCodeDef = emptyCodeDef
-            { lineComm = Just "#"
-            , tabSpace = 4
-            , strParser = Just $ stringParser False shellLikeCodeDef
-            }
-
-rubyCodeDef = shellLikeCodeDef
-    { multiLineCommBeg = Just "=begin"
-    , multiLineCommEnd = Just "=end"
-    }
-
-pythonCodeDef = shellLikeCodeDef
-           { identParser = identWithPrime
-           , strParser = Just $ stringParser False pythonCodeDef
-           , keywordList = Set.fromList
-                [ "def", "if", "while", "for", "in", "class"
-                , "import", "from", "return", "break", "continue"
-                , "not", "try", "with", "finally" ]
-
-           , typeList = Set.fromList
-                [ "int", "float", "string" ]
-           }
-
-cCodeDef = CodeDef
-           { lineComm = Just "//"
-           , multiLineCommBeg = Just "/*"
-           , multiLineCommEnd = Just "*/"
-           , tabSpace = 4
-           , identParser = identWithPrime
-           , strParser = Just $ stringParser False cCodeDef
-           , keywordList = Set.fromList
-                [ "do", "while", "for", "if", "else", "typedef"
-                , "struct", "class", "public", "private"
-                , "protected", "switch", "case", "const" ]
-           , typeList = Set.fromList
-                [ "void", "int", "short", "unsigned", "char"
-                , "float", "double", "byte" ]
-           }
-
-haskellCodeDef = CodeDef
-                 { lineComm = Just "--"
-                 , multiLineCommBeg = Just "{-"
-                 , multiLineCommEnd = Just "-}"
-                 , tabSpace = 4
-                 , identParser = identWithPrime
-                 , strParser = Just $ stringParser False haskellCodeDef
-                 , keywordList = Set.fromList
-                    [ "let", "in", "where", "class", "instance"
-                    , "data", "type", "newtype", "module", "import"
-                    , "infixl", "infixr", "if", "then", "else", "qualified"
-                    ]
-                 , typeList = Set.fromList
-                    [ "Bool", "Int", "Integer", "Float"
-                    , "Double", "Set", "Map", "Char", "String" ]
-                 }
-
-ocamlCodeDef = CodeDef
-               { lineComm = Nothing
-               , multiLineCommBeg = Just "(*"
-               , multiLineCommEnd = Just "*)"
-               , tabSpace = 4
-               , identParser = basicIdent
-               , strParser = Just $ stringParser False ocamlCodeDef
-               , keywordList = Set.fromList
-                    [ "let", "in", "and", "match", "if", "then"
-                    , "else", "module", "sig", "begin", "end"
-                    , "class"
-                    ]
-               , typeList = Set.fromList
-                    [ "bool", "int", "char", "float" ]
-               }
-
---------------------------------------------------
 ----            Generation code
 --------------------------------------------------
--- | Basic identifier parser parser the [a-zA-Z][a-zA-Z0-9']*
--- identifier
-identWithPrime :: Char -> Int -> Bool
-identWithPrime c 0 = isAlpha c
-identWithPrime c _ = isAlphaNum c || c == '\''
-
--- | Parse a string, ignoring the \\\"
-stringParser :: Bool -> CodeDef -> ColorDef -> Parser
-stringParser allowBreak codeDef colorDef ('"':stringSuite) =
-  stringer (color:) stringSuite
-    where color = stringColor colorDef
-          empty = emptyColor colorDef
-          tabSize = tabSpace codeDef
-          stringer acc [] = if allowBreak
-                                then Left $ NextParse (acc [], stringer id)
-                                else Right Nothing
-          stringer acc ('\\':'"':xs) =
-              stringer (acc . ([color, color]++)) xs
-          stringer acc (' ':xs) = stringer (acc . (empty:)) xs
-          stringer acc ('\t':xs) = stringer (acc . (replicate tabSize empty ++)) xs
-          stringer acc ('"':xs) = Right $ Just (acc [color], xs)
-          stringer acc (_:xs) = stringer (acc . (color:)) xs
-stringParser _ _ _ _ = Right Nothing
-
 
 -- | Parse a commentary from a beginning marker till the
 -- end of the line.
@@ -215,16 +97,12 @@ globalParse highlightList codeDef colorDef toParse =
             where colorHi = highlightColor colorDef
                   colorMaj = majColor colorDef
                   colorNormal = normalColor colorDef
-                  colorKey = keywordColor colorDef
-                  colorType = typeColor colorDef
 
-                  keyList = keywordList codeDef
-                  typesList = typeList codeDef
-
-                  prepareWord w | w `elem` highlightList = replicate (length w) colorHi
-                                | w `Set.member` keyList = replicate (length w) colorKey
-                                | w `Set.member` typesList = replicate (length w) colorType
-                                | otherwise = map (\a -> if isUpper a then colorMaj else colorNormal) w
+                  prepareWord w 
+                    | w `elem` highlightList = replicate (length w) colorHi
+                    | otherwise = case w `Map.lookup` specialIdentifier codeDef of
+                    Nothing -> map (\a -> if isUpper a then colorMaj else colorNormal) w
+                    Just c -> replicate (length w) c
 
 charEater :: CodeDef -> ColorDef -> Parser
 charEater       _        _        [] = Right Nothing

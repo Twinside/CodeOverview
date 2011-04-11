@@ -4,10 +4,12 @@ module CodeOverviewGenerator.Language ( CodeDef( .. )
                                       , Parser
                                       , emptyCodeDef
                                       , basicIdent
+                                      , identWithPrime 
+                                      , stringParser 
                                       ) where
 
 import Data.Char
-import qualified Data.Set as Set
+import qualified Data.Map as Map
 import CodeOverviewGenerator.Color
 
 newtype NextParse = NextParse ([ViewColor], Parser)
@@ -31,10 +33,8 @@ data    CodeDef = CodeDef
     , strParser :: Maybe (ColorDef -> Parser)
       -- | How we must transform tab into space.
     , tabSpace :: Int
-      -- | Keyword list, for better coloration.
-    , keywordList :: Set.Set String
-      -- | Type list, for better coloration.
-    , typeList :: Set.Set String
+      -- | Coloration for keywords/identifier.
+    , specialIdentifier :: Map.Map String ViewColor
     }
 
 -- | Basic identifier parser parser the [a-zA-Z][a-zA-Z0-9]*
@@ -52,7 +52,30 @@ emptyCodeDef = CodeDef
             , tabSpace = 4
             , identParser = basicIdent
             , strParser = Nothing
-            , keywordList = Set.empty
-            , typeList = Set.empty
+            , specialIdentifier = Map.empty
             }
+
+-- | Basic identifier parser parser the [a-zA-Z][a-zA-Z0-9']*
+-- identifier
+identWithPrime :: Char -> Int -> Bool
+identWithPrime c 0 = isAlpha c
+identWithPrime c _ = isAlphaNum c || c == '\''
+
+-- | Parse a string, ignoring the \\\"
+stringParser :: Bool -> CodeDef -> ColorDef -> Parser
+stringParser allowBreak codeDef colorDef ('"':stringSuite) =
+  stringer (color:) stringSuite
+    where color = stringColor colorDef
+          empty = emptyColor colorDef
+          tabSize = tabSpace codeDef
+          stringer acc [] = if allowBreak
+                                then Left $ NextParse (acc [], stringer id)
+                                else Right Nothing
+          stringer acc ('\\':'"':xs) =
+              stringer (acc . ([color, color]++)) xs
+          stringer acc (' ':xs) = stringer (acc . (empty:)) xs
+          stringer acc ('\t':xs) = stringer (acc . (replicate tabSize empty ++)) xs
+          stringer acc ('"':xs) = Right $ Just (acc [color], xs)
+          stringer acc (_:xs) = stringer (acc . (color:)) xs
+stringParser _ _ _ _ = Right Nothing
 
