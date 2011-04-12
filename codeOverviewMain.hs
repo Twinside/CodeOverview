@@ -1,6 +1,7 @@
 import CodeOverviewGenerator.CodeOverview
 import CodeOverviewGenerator.Language
 import CodeOverviewGenerator.Language.C
+import CodeOverviewGenerator.Language.Cpp
 import CodeOverviewGenerator.Language.Ocaml
 import CodeOverviewGenerator.Language.Haskell
 import CodeOverviewGenerator.Language.Python
