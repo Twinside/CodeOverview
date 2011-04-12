@@ -3,9 +3,12 @@ module CodeOverviewGenerator.Color( ColorDef(..)
                                   , defaultColorDef
                                   , parseColorDef
                                   , prepareKeywords
+                                  , strComment
                                   ) where
 
 import Data.List( foldl' )
+import qualified Data.Map as Map
+import qualified CodeOverviewGenerator.ByteString as B
 
 type ViewColor = (Int, Int, Int, Int)
 
@@ -40,8 +43,14 @@ data    ColorDef = ColorDef
     }
     deriving Show
 
-prepareKeywords :: [String] -> ViewColor -> [(String, ViewColor)]
-prepareKeywords lst c = map (\s -> (s,c)) lst
+strComment :: String -> Maybe B.ByteString
+strComment = Just . B.pack
+
+prepareKeywords :: ColorDef -> [([String], ColorDef -> ViewColor)]
+                -> Map.Map B.ByteString ViewColor
+prepareKeywords colors lst = Map.fromList
+    [(B.pack str, colorAccess colors) | (strList, colorAccess) <- lst
+                                      , str <- strList ]
 
 defaultColorDef :: ColorDef
 defaultColorDef = ColorDef
@@ -113,6 +122,8 @@ parseColorDef txt = foldl' updateColorDef defaultColorDef vals
                . concatMap (split ';')
                $ lines txt
 
+
+-- | Function used in a fold to parse color configuration file.
 updateColorDef :: ColorDef -> (String, String) -> ColorDef
 updateColorDef def ("comment",val) =
     maybe def (\c -> def { commentColor = c }) $ parseHtmlColor val

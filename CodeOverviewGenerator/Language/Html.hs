@@ -7,7 +7,7 @@ import CodeOverviewGenerator.Color
 
 htmlCodeDef :: ColorDef -> CodeDef
 htmlCodeDef _colors = emptyCodeDef
-            { multiLineCommBeg = Just "<!--"
-            , multiLineCommEnd = Just "-->"
+            { multiLineCommBeg = strComment "<!--"
+            , multiLineCommEnd = strComment "-->"
             }
 

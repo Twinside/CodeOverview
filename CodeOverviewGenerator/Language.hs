@@ -1,3 +1,4 @@
+{-# LANGUAGE ViewPatterns #-}
 module CodeOverviewGenerator.Language ( CodeDef( .. )
                                       , NextParse( .. )
                                       , ParseResult
@@ -12,21 +13,24 @@ import Data.Char
 import qualified Data.Map as Map
 import CodeOverviewGenerator.Color
 
+import CodeOverviewGenerator.ByteString(uncons)
+import qualified CodeOverviewGenerator.ByteString as B
+
 newtype NextParse = NextParse ([ViewColor], Parser)
-type ParseResult = Either NextParse (Maybe ([ViewColor], String))
-type Parser = String -> ParseResult
+type ParseResult = Either NextParse (Maybe ([ViewColor], B.ByteString))
+type Parser = B.ByteString -> ParseResult
 
 -- | Define a language used by the image generator to put
 -- some colors in it.
 data    CodeDef = CodeDef
     { -- | Beginning marker for mono line market
-      lineComm         :: Maybe String  
+      lineComm         :: Maybe B.ByteString
       -- | Beginning marker for multilines comments, like
       -- \'/*\' in C or \'{-\' in Haskell
-    , multiLineCommBeg :: Maybe String
+    , multiLineCommBeg :: Maybe B.ByteString
       -- | End  marker for multiline comments, like
       -- \'*/\' in C or \'-}\' in Haskell
-    , multiLineCommEnd :: Maybe String
+    , multiLineCommEnd :: Maybe B.ByteString
       -- | Definition for identifier for the current language.
     , identParser :: Char -> Int -> Bool
       -- | Definition for strings in the current language.
@@ -34,7 +38,7 @@ data    CodeDef = CodeDef
       -- | How we must transform tab into space.
     , tabSpace :: Int
       -- | Coloration for keywords/identifier.
-    , specialIdentifier :: Map.Map String ViewColor
+    , specialIdentifier :: Map.Map B.ByteString ViewColor
     }
 
 -- | Basic identifier parser parser the [a-zA-Z][a-zA-Z0-9]*
@@ -63,19 +67,21 @@ identWithPrime c _ = isAlphaNum c || c == '\''
 
 -- | Parse a string, ignoring the \\\"
 stringParser :: Bool -> CodeDef -> ColorDef -> Parser
-stringParser allowBreak codeDef colorDef ('"':stringSuite) =
+stringParser allowBreak codeDef colorDef (uncons -> Just ('"',stringSuite)) =
   stringer (color:) stringSuite
     where color = stringColor colorDef
           empty = emptyColor colorDef
           tabSize = tabSpace codeDef
-          stringer acc [] = if allowBreak
+          stringer acc (uncons -> Nothing) = if allowBreak
                                 then Left $ NextParse (acc [], stringer id)
                                 else Right Nothing
-          stringer acc ('\\':'"':xs) =
+          stringer acc (uncons -> Just ('\\', uncons -> Just ('"',xs))) =
               stringer (acc . ([color, color]++)) xs
-          stringer acc (' ':xs) = stringer (acc . (empty:)) xs
-          stringer acc ('\t':xs) = stringer (acc . (replicate tabSize empty ++)) xs
-          stringer acc ('"':xs) = Right $ Just (acc [color], xs)
-          stringer acc (_:xs) = stringer (acc . (color:)) xs
+          stringer acc (uncons -> Just (' ',xs)) = stringer (acc . (empty:)) xs
+          stringer acc (uncons -> Just ('\t',xs)) = 
+            stringer (acc . (replicate tabSize empty ++)) xs
+          stringer acc (uncons -> Just ('"',xs)) = Right $ Just (acc [color], xs)
+          stringer acc (uncons -> Just (_,xs)) = stringer (acc . (color:)) xs
+          stringer _ _ = error "stringParser compiler pleaser"
 stringParser _ _ _ _ = Right Nothing
 

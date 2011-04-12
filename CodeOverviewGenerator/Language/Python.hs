@@ -1,7 +1,5 @@
 module CodeOverviewGenerator.Language.Python ( pythonCodeDef ) where
 
-import qualified Data.Map as Map
-
 import CodeOverviewGenerator.Language
 import CodeOverviewGenerator.Language.Shell
 import CodeOverviewGenerator.Color
@@ -24,12 +22,13 @@ pythonCodeDef colors = def
     where def = (shellCodeDef colors)
            { identParser = identWithPrime
            , strParser = Just $ stringParser False def
-           , specialIdentifier = Map.fromList $
-               prepareKeywords pythonStatement (statementColor colors)
-             ++ prepareKeywords pythonConditional (conditionalColor colors)
-             ++ prepareKeywords pythonRepeat (repeatColor colors)
-             ++ prepareKeywords pythonOperator (operatorColor colors)
-             ++ prepareKeywords pythonException (exceptionColor colors)
-             ++ prepareKeywords pythonInclude (includeColor colors)
+           , specialIdentifier = prepareKeywords colors
+                [ (pythonStatement, statementColor)
+                , (pythonConditional, conditionalColor)
+                , (pythonRepeat, repeatColor)
+                , (pythonOperator, operatorColor)
+                , (pythonException, exceptionColor)
+                , (pythonInclude, includeColor)
+                ]
            }
 

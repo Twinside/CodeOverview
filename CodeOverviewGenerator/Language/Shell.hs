@@ -8,7 +8,7 @@ import CodeOverviewGenerator.Color
 shellCodeDef :: ColorDef -> CodeDef
 shellCodeDef _colors = def
     where def = emptyCodeDef
-            { lineComm = Just "#"
+            { lineComm = strComment  "#"
             , tabSpace = 4
             , strParser = Just $ stringParser False def
             }

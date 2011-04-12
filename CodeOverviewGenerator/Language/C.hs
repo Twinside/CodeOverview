@@ -1,9 +1,8 @@
 module CodeOverviewGenerator.Language.C( cCodeDef, cppCodeDef ) where
 
-import qualified Data.Map as Map
-
 import CodeOverviewGenerator.Language
 import CodeOverviewGenerator.Color
+import qualified Data.Map as Map
 
 cStatement, cLabel, cConditional, cRepeat, cType, cStructure,
     cStorageClass :: [String]
@@ -31,20 +30,21 @@ cStorageClass = ["static", "register", "auto", "volatile", "extern", "const", "i
 cCodeDef :: ColorDef -> CodeDef
 cCodeDef colors = def
     where def = CodeDef
-           { lineComm = Just "//"
-           , multiLineCommBeg = Just "/*"
-           , multiLineCommEnd = Just "*/"
+           { lineComm = strComment "//"
+           , multiLineCommBeg = strComment "/*"
+           , multiLineCommEnd = strComment "*/"
            , tabSpace = 4
            , identParser = identWithPrime
            , strParser = Just $ stringParser False def
-           , specialIdentifier = Map.fromList $
-                prepareKeywords cStatement (statementColor colors)
-             ++ prepareKeywords cLabel (labelColor colors)
-             ++ prepareKeywords cRepeat (repeatColor colors)
-             ++ prepareKeywords cType (typeColor colors)
-             ++ prepareKeywords cConditional (conditionalColor colors)
-             ++ prepareKeywords cStructure (structureColor colors)
-             ++ prepareKeywords cStorageClass (storageClassColor colors)
+           , specialIdentifier = prepareKeywords colors
+                [ (cLabel, labelColor)
+                , (cStatement, statementColor)
+                , (cRepeat, repeatColor)
+                , (cType, typeColor)
+                , (cConditional, conditionalColor)
+                , (cStructure, structureColor)
+                , (cStorageClass, storageClassColor)
+                ]
            }
 
 cppStatement, cppAccess, cppType, cppExceptions, 
@@ -62,13 +62,16 @@ cppStructure = ["class", "typename", "template", "namespace"]
 cppCodeDef :: ColorDef -> CodeDef
 cppCodeDef colors = def
     where cdef = (cCodeDef colors)
+
+          cppIdents = prepareKeywords colors
+            [(cppStatement, statementColor)
+            ,(cppAccess, statementColor)
+            ,(cppType, typeColor)
+            ,(cppExceptions, exceptionColor)
+            ,(cppStructure, structureColor)
+            ,(cppOperator, operatorColor)
+            ]
+
           def = cdef {
-            specialIdentifier = specialIdentifier cdef `Map.union` (Map.fromList $
-                   prepareKeywords cppStatement (statementColor colors)
-                ++ prepareKeywords cppAccess (statementColor colors)
-                ++ prepareKeywords cppType (typeColor colors)
-                ++ prepareKeywords cppExceptions (exceptionColor colors)
-                ++ prepareKeywords cppStructure (structureColor colors)
-                ++ prepareKeywords cppOperator (operatorColor colors)
-                )
-        }
+            specialIdentifier = cppIdents `Map.union` specialIdentifier cdef 
+            }

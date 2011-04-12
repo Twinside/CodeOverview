@@ -10,7 +10,7 @@ rubyCodeDef :: ColorDef -> CodeDef
 rubyCodeDef colors = def
     where shell = shellCodeDef colors
           def = shell
-            { multiLineCommBeg = Just "=begin"
-            , multiLineCommEnd = Just "=end"
+            { multiLineCommBeg = strComment "=begin"
+            , multiLineCommEnd = strComment "=end"
             }
 

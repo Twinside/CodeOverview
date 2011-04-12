@@ -1,7 +1,5 @@
 module CodeOverviewGenerator.Language.Haskell ( haskellCodeDef ) where
 
-import qualified Data.Map as Map
-
 import CodeOverviewGenerator.Language
 import CodeOverviewGenerator.Color
 
@@ -21,18 +19,19 @@ hTypes = ["Int", "Integer", "Char", "Bool", "Float"
 haskellCodeDef :: ColorDef -> CodeDef
 haskellCodeDef colors = def
     where def = CodeDef
-                { lineComm = Just "--"
-                , multiLineCommBeg = Just "{-"
-                , multiLineCommEnd = Just "-}"
+                { lineComm = strComment "--"
+                , multiLineCommBeg = strComment "{-"
+                , multiLineCommEnd = strComment "-}"
                 , tabSpace = 4
                 , identParser = identWithPrime
                 , strParser = Just $ stringParser False def
-                , specialIdentifier = Map.fromList $
-                    prepareKeywords (hModule ++ hStructure) (structureColor colors)
-                 ++ prepareKeywords hImport (includeColor colors)
-                 ++ prepareKeywords hTypedef (typedefColor colors)
-                 ++ prepareKeywords hStatement (statementColor colors)
-                 ++ prepareKeywords hConditional (conditionalColor colors)
-                 ++ prepareKeywords hTypes (typeColor colors)
+                , specialIdentifier = prepareKeywords colors
+                    [ (hModule ++ hStructure, structureColor)
+                    , (hImport, includeColor)
+                    , (hTypedef, typedefColor)
+                    , (hStatement, statementColor)
+                    , (hConditional, conditionalColor)
+                    , (hTypes, typeColor)
+                    ]
                 }
 

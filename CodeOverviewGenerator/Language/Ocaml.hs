@@ -16,8 +16,8 @@ ocamlCodeDef :: ColorDef -> CodeDef
 ocamlCodeDef _colors = def
     where def = CodeDef
                { lineComm = Nothing
-               , multiLineCommBeg = Just "(*"
-               , multiLineCommEnd = Just "*)"
+               , multiLineCommBeg = strComment "(*"
+               , multiLineCommEnd = strComment "*)"
                , tabSpace = 4
                , identParser = basicIdent
                , strParser = Just $ stringParser False def

@@ -7,6 +7,7 @@ import CodeOverviewGenerator.Language.Python
 import CodeOverviewGenerator.Language.Shell
 import CodeOverviewGenerator.Language.Ruby
 import CodeOverviewGenerator.Language.Html
+import qualified CodeOverviewGenerator.ByteString as B
 import Png
 
 import Control.Monad( when )
@@ -151,7 +152,7 @@ codeDefOfExt option path extension =
 
 performTransformation :: OverOption -> FilePath -> IO [[ViewColor]]
 performTransformation option path = do
-    file <- readFile path
+    file <- B.readFile path
     let (fname, ext) = splitExtension path
         fileExt = if ext == "" then snd $ splitFileName fname
                                else ext
@@ -165,7 +166,7 @@ performTransformation option path = do
                         colorDef
                         errorLines
                         (overHighlighted option)
-                        $ lines file
+                        $ B.lines file
     if overTop option >= 0
        then return $ addOverMask colorDef (0, overTop option - 1)
                                           (5000, overHiSize option - 1)
