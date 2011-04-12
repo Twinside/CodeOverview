@@ -7,6 +7,8 @@ tags
 *.ncb
 *.suo
 *.user
+*.o
+*.hi
 
 
 build/*

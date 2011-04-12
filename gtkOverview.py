@@ -252,7 +252,7 @@ class OverViewImage:
 
         cr.set_source_rgba(self.rectColor.red_float, 
                            self.rectColor.green_float, 
-                           self.rectColor.blue_float, 0.6)
+                           self.rectColor.blue_float, 0.3)
         cr.rectangle(0, int(self.realTop), width, int(height))
         cr.fill()
         

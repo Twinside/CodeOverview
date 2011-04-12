@@ -32,6 +32,7 @@ data    ColorDef = ColorDef
     , exceptionColor   :: ViewColor
     , operatorColor    :: ViewColor
     , includeColor     :: ViewColor
+    , storageClassColor :: ViewColor
 
     , errorLineColor :: ViewColor
     , warningLineColor :: ViewColor
@@ -65,6 +66,7 @@ defaultColorDef = ColorDef
     , includeColor     = (  0,   0,   0, 255)
     , exceptionColor   = (  0,   0,   0, 255)
     , operatorColor    = (  0,   0,   0, 255)
+    , storageClassColor = (  0,   0,   0, 255)
 
     , errorLineColor   = (255,   0,   0, 200)
     , warningLineColor = (  0, 255, 255, 200)
@@ -153,7 +155,8 @@ updateColorDef def ("exception", val) =
     maybe def (\c -> def { exceptionColor = c }) $ parseHtmlColor val
 updateColorDef def ("operator", val) =
     maybe def (\c -> def { operatorColor = c }) $ parseHtmlColor val
-
+updateColorDef def ("storageClass",val) =
+    maybe def (\c -> def { storageClassColor = c }) $ parseHtmlColor val
 
 updateColorDef def ("errorLine",val) =
     maybe def (\c -> def { errorLineColor = c }) $ parseHtmlColor val

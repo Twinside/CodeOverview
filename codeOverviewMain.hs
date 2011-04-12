@@ -88,14 +88,14 @@ extensionAssociation :: [(String, (String, ColorDef -> CodeDef))]
 extensionAssociation =
     [ (".hs"    , ("haskell"      , haskellCodeDef))
     , (".c"     , ("C"            , cCodeDef))
-    , (".h"     , ("C/C++ Header" , cCodeDef))
-    , (".C"     , ("C++"          , cCodeDef))
-    , (".cs"    , ("C#"           , cCodeDef))
-    , (".cpp"   , ("C++"          , cCodeDef))
-    , (".cc"    , ("C++"          , cCodeDef))
-    , (".java"  , ("Java"         , cCodeDef))
-    , (".js"    , ("Javascript"   , cCodeDef))
-    , (".m"     , ("Objective C"  , cCodeDef))
+    , (".h"     , ("C/C++ Header" , cppCodeDef))
+    , (".C"     , ("C++"          , cppCodeDef))
+    , (".cs"    , ("C#"           , cppCodeDef))
+    , (".cpp"   , ("C++"          , cppCodeDef))
+    , (".cc"    , ("C++"          , cppCodeDef))
+    , (".java"  , ("Java"         , cppCodeDef))
+    , (".js"    , ("Javascript"   , cppCodeDef))
+    , (".m"     , ("Objective C"  , cppCodeDef))
     , (".ml"    , ("OCaml"        , ocamlCodeDef))
     , (".mli"   , ("OCaml"        , ocamlCodeDef))
     , (".fs"    , ("F#"           , ocamlCodeDef))
@@ -112,10 +112,16 @@ extensionAssociation =
 
 loadConf :: OverOption -> IO ColorDef
 loadConf opts
-    | null $ overConf opts = return defaultColorDef
+    | null $ overConf opts = do
+        when (overVerbose opts)
+             (putStrLn "Using default colors")
+        return defaultColorDef
     | otherwise = do
         file <- readFile $ overConf opts
-        return $ parseColorDef file
+        let colors = parseColorDef file
+        when (overVerbose opts)
+             (putStrLn "Using colors " >> print colors)
+        return colors
 
 loadErrorFile :: OverOption -> IO [(String, Int)]
 loadErrorFile opts = case overErrFile opts  of
@@ -152,6 +158,8 @@ performTransformation option path = do
     codeDef <- codeDefOfExt option path fileExt
     colorDef <- loadConf option
     errorLines <- loadErrorFile option
+    when (overVerbose option)
+         (putStrLn $ "highlight List : " ++ show (overHighlighted option))
     let pixelList = createCodeOverview 
                         (codeDef colorDef)
                         colorDef
