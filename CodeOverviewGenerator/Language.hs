@@ -7,6 +7,7 @@ module CodeOverviewGenerator.Language ( CodeDef( .. )
                                       , basicIdent
                                       , identWithPrime 
                                       , stringParser 
+                                      , charParser 
                                       ) where
 
 import Data.Char
@@ -64,6 +65,21 @@ emptyCodeDef = CodeDef
 identWithPrime :: Char -> Int -> Bool
 identWithPrime c 0 = isAlpha c
 identWithPrime c _ = isAlphaNum c || c == '\''
+
+charParser :: ColorDef -> Parser
+charParser colorDef (uncons -> Just ('\'', rest)) = parser (1,rest)
+    where color = charColor colorDef
+          parser (n, uncons -> Just ('\\', uncons -> Just ('\\',xs))) =
+              parser (n + 2,xs)
+          parser (n, uncons -> Just ('\\', uncons -> Just ('\'',xs))) =
+              parser (n + 2,xs)
+          parser (n, uncons -> Just ('\'', rest')) = 
+                Right (Just (replicate (n + 1) color, rest'))
+          parser (n, uncons -> Just (_, xs)) = parser (n + 1, xs)
+          parser (n, uncons -> Nothing) =
+                Right $ Just (replicate n color, B.empty)
+          parser (_, _) = error "Compiler pleaser charParser"
+charParser _ _ = Right Nothing
 
 -- | Parse a string, ignoring the \\\"
 stringParser :: Bool -> CodeDef -> ColorDef -> Parser

@@ -139,8 +139,14 @@ fun! s:BuildColorConfFromColorScheme() "{{{
         \ , ["operator"    , 'Operator'    , 'fg']
         \ , ["storageClass", 'StorageClass', 'fg']
         \
+        \ , ["float"       , 'Float'       , 'fg']
+        \ , ["number"      , 'Number'      , 'fg']
+        \ , ["bool"        , 'Boolean'     , 'fg']
+        \ , ["char"        , 'Character'   , 'fg']
+        \
         \ , ["label"       , 'Label'       , 'fg']
         \ , ["macro"       , 'Macro'       , 'fg']
+        \
         \ ]
     
     let writtenConf = []
