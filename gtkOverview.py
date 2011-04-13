@@ -224,9 +224,11 @@ class OverViewImage:
         self.ending = int(end)
         self.updateImage(imageFile)
         self.keySender.windowId = int(winId)
-
         self.backColor = gtk.gdk.color_parse(backColor)
         self.window.modify_bg(gtk.STATE_NORMAL, self.backColor)
+        
+        (winWidth, winHeight) = self.window.get_size()
+        self.window.move(int(winX) - winWidth, int(winY))
 
         self.rectColor = gtk.gdk.color_parse(viewRectColor)
         self.initiated = True

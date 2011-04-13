@@ -2,6 +2,7 @@ import CodeOverviewGenerator.CodeOverview
 import CodeOverviewGenerator.Language
 import CodeOverviewGenerator.Language.C
 import CodeOverviewGenerator.Language.Cpp
+import CodeOverviewGenerator.Language.Java
 import CodeOverviewGenerator.Language.Ocaml
 import CodeOverviewGenerator.Language.Haskell
 import CodeOverviewGenerator.Language.Python
@@ -95,7 +96,7 @@ extensionAssociation =
     , (".cs"    , ("C#"           , cppCodeDef))
     , (".cpp"   , ("C++"          , cppCodeDef))
     , (".cc"    , ("C++"          , cppCodeDef))
-    , (".java"  , ("Java"         , cppCodeDef))
+    , (".java"  , ("Java"         , javaCodeDef))
     , (".js"    , ("Javascript"   , cppCodeDef))
     , (".m"     , ("Objective C"  , cppCodeDef))
     , (".ml"    , ("OCaml"        , ocamlCodeDef))
@@ -104,7 +105,7 @@ extensionAssociation =
     , (".fsi"   , ("F#"           , ocamlCodeDef))
     , (".py"    , ("Python"       , pythonCodeDef))
     , (".sh"    , ("Shell Script" , shellCodeDef))
-    , ("Makefile", ("Shell Script" , shellCodeDef))
+    , ("Makefile", ("Shell Script", shellCodeDef))
     , (".rb"    , ("Ruby"         , rubyCodeDef))
     , (".html"  , ("HTML"         , htmlCodeDef))
     , (".htm"   , ("HTML"         , htmlCodeDef))
