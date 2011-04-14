@@ -33,5 +33,7 @@ haskellCodeDef colors = def
                     , (hConditional, conditionalColor)
                     , (hTypes, typeColor)
                     ]
+
+                , specificParser = [ intParser colors ]
                 }
 

@@ -35,7 +35,7 @@ javaCodeDef colors = def
                 ,(javaRepeat, repeatColor)
                 ,(javaConditional, conditionalColor)
                 ,(javaBranch, conditionalColor)
-                {-,(javaBoolean, boolColor)-}
+                ,(javaBoolean, boolColor)
                 ]
 
             }

@@ -1,7 +1,10 @@
+{-# LANGUAGE ViewPatterns #-}
 module CodeOverviewGenerator.Language.C( cCodeDef ) where
 
 import CodeOverviewGenerator.Language
 import CodeOverviewGenerator.Color
+import CodeOverviewGenerator.ByteString( uncons )
+import qualified CodeOverviewGenerator.ByteString as B
 
 cStatement, cLabel, cConditional, cRepeat, cType, cStructure,
     cStorageClass :: [String]
@@ -32,6 +35,14 @@ cStructure = ["struct", "union", "enum", "typedef"]
 
 cStorageClass = ["static", "register", "auto", "volatile", "extern", "const", "inline"]
 
+preprocParser :: ColorDef -> Parser
+preprocParser colors (uncons -> Just ('#', toParse)) = preprocParse (1, toParse)
+    where pColor = preprocColor colors
+          preprocParse (n, uncons -> Nothing) = Right $ Just (replicate n pColor, B.empty)
+          preprocParse (n, uncons -> Just (_,rest)) = preprocParse (n + 1, rest)
+          preprocParse _ = error "Compiler pleaser preprocParser"
+preprocParser _ _ = Right Nothing
+
 cCodeDef :: ColorDef -> CodeDef
 cCodeDef colors = def
     where def = CodeDef
@@ -50,5 +61,6 @@ cCodeDef colors = def
                 , (cStructure, structureColor)
                 , (cStorageClass, storageClassColor)
                 ]
+           , specificParser = [intParser colors, preprocParser colors]
            }
 

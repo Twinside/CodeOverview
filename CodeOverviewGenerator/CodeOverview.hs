@@ -129,7 +129,8 @@ whenAdd yesno a = if yesno then (a:) else id
 
 parserList :: [String] -> CodeDef -> ColorDef -> [Parser]    
 parserList highlightDef codeDef colorDef =
-      (charParser colorDef:) 
+      (specificParser codeDef ++)
+    . (charParser colorDef:) 
     . whenAdd (isJust $ lineComm codeDef) (monoLineComment codeDef colorDef)
     . whenAdd (isJust $ strParser codeDef) (fromJust (strParser codeDef) colorDef)
     . whenAdd (multiLineCommBeg codeDef /= Nothing

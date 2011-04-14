@@ -8,6 +8,7 @@ module CodeOverviewGenerator.Language ( CodeDef( .. )
                                       , identWithPrime 
                                       , stringParser 
                                       , charParser 
+                                      , intParser 
                                       ) where
 
 import Data.Char
@@ -40,6 +41,8 @@ data    CodeDef = CodeDef
     , tabSpace :: Int
       -- | Coloration for keywords/identifier.
     , specialIdentifier :: Map.Map B.ByteString ViewColor
+      -- | List of special parsers used for a specific language.
+    , specificParser :: [Parser]
     }
 
 -- | Basic identifier parser parser the [a-zA-Z][a-zA-Z0-9]*
@@ -58,6 +61,7 @@ emptyCodeDef = CodeDef
             , identParser = basicIdent
             , strParser = Nothing
             , specialIdentifier = Map.empty
+            , specificParser = []
             }
 
 -- | Basic identifier parser parser the [a-zA-Z][a-zA-Z0-9']*
@@ -66,6 +70,21 @@ identWithPrime :: Char -> Int -> Bool
 identWithPrime c 0 = isAlpha c
 identWithPrime c _ = isAlphaNum c || c == '\''
 
+-- | Parse an integer of the form \'[0-9]+\'
+intParser :: ColorDef -> Parser
+intParser colorDef (uncons -> Just (c, toParse))
+    | isDigit c = intParse (1, toParse)
+        where numColor = numberColor colorDef
+              intParse (n, uncons -> Just (c', rest))
+                | isDigit c' = intParse (n + 1, rest)
+                | otherwise = Right $ Just (replicate n numColor, rest)
+              intParse (n, uncons -> Nothing) =
+                Right $ Just (replicate n numColor, B.empty)
+              intParse _ = error "Compiler pleaser - intParser"
+intParser _ _ = Right Nothing
+
+-- | Aim to parse \' \' like structures (char representation) of a given
+-- programming language.
 charParser :: ColorDef -> Parser
 charParser colorDef (uncons -> Just ('\'', rest)) = parser (1,rest)
     where color = charColor colorDef
