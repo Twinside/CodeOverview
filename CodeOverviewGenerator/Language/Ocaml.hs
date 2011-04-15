@@ -18,7 +18,7 @@ ocamlTypes =
 
 ocamlOperator = ["asr", "lor", "lsl", "lsr", "lxor", "mod", "not"]
 
-ocamlCodeDef :: ColorDef -> CodeDef
+ocamlCodeDef :: ColorDef -> CodeDef [ViewColor]
 ocamlCodeDef colors = def
     where def = CodeDef
                { lineComm = Nothing
@@ -32,5 +32,6 @@ ocamlCodeDef colors = def
                     , (ocamlTypes, typeColor)
                     , (ocamlOperator, operatorColor)
                     ]
+               , specificParser = []
                }
 

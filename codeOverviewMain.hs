@@ -87,7 +87,7 @@ loadArgs args =
          (opts, file, _) -> return $ 
              (foldr (\f opt -> f opt) defaultOption opts){ overFiles = file }
              
-extensionAssociation :: [(String, (String, ColorDef -> CodeDef))]
+extensionAssociation :: [(String, (String, ColorDef -> CodeDef [ViewColor]))]
 extensionAssociation =
     [ (".hs"    , ("haskell"      , haskellCodeDef))
     , (".c"     , ("C"            , cCodeDef))
@@ -143,7 +143,7 @@ savePngImage option path pixels
         where toRgb pixelsList =
                   [map (\(a,b,c,_) -> (a,b,c)) line | line <- pixelsList]
 
-codeDefOfExt :: OverOption -> String -> String -> IO (ColorDef -> CodeDef)
+codeDefOfExt :: OverOption -> String -> String -> IO (ColorDef -> CodeDef [ViewColor])
 codeDefOfExt option path extension =
     maybe (return $ const emptyCodeDef) 
           (\(name, code) -> do

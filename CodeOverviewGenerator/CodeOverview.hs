@@ -31,7 +31,7 @@ import CodeOverviewGenerator.Language
 
 -- | Parse a commentary from a beginning marker till the
 -- end of the line.
-monoLineComment :: CodeDef -> ColorDef -> Parser
+monoLineComment :: CodeDef [ViewColor] -> ColorDef -> Parser [ViewColor]
 monoLineComment cdef colors toMatch 
   | initial `B.isPrefixOf` toMatch = Right 
                                    $ Just (concatMap colorer $ B.unpack toMatch, B.empty)
@@ -47,7 +47,7 @@ monoLineComment cdef colors toMatch
 
 -- | Parse multiline comments.
 -- Comments can be nested, the parsing is recursive.
-multiLineComment :: CodeDef -> ColorDef -> Parser
+multiLineComment :: CodeDef [ViewColor] -> ColorDef -> Parser [ViewColor]
 multiLineComment cdef colors toMatch
   | initial `B.isPrefixOf` toMatch = multiParse (replicate initSize color ++) 1
                                    $ B.drop initSize toMatch
@@ -60,7 +60,7 @@ multiLineComment cdef colors toMatch
           Just end = multiLineCommEnd cdef
           endSize = B.length end
 
-          multiParse :: ([ViewColor] -> [ViewColor]) -> Int -> Parser
+          multiParse :: ([ViewColor] -> [ViewColor]) -> Int -> Parser [ViewColor]
           multiParse acc level (uncons -> Nothing) =
                 Left $ NextParse (acc [], multiParse id level)
 
@@ -96,7 +96,7 @@ eatTillSpace f = eater 0
             | otherwise = (B.empty, l)
           eater _ _ = error "Compilator pleaser eatTillSpace"
 
-globalParse :: [String] -> CodeDef -> ColorDef -> Parser
+globalParse :: [String] -> CodeDef [ViewColor] -> ColorDef -> Parser [ViewColor]
 globalParse highlightList codeDef colorDef toParse =
     let (word, rest) = eatTillSpace (identParser codeDef) toParse
     in if B.null word
@@ -115,7 +115,7 @@ globalParse highlightList codeDef colorDef toParse =
                                     $ B.unpack w
                         Just c -> replicate (B.length w) c
 
-charEater :: CodeDef -> ColorDef -> Parser
+charEater :: CodeDef [ViewColor] -> ColorDef -> Parser [ViewColor]
 charEater       _        _  (uncons -> Nothing) = Right Nothing
 charEater codeDef colorDef  (uncons -> Just ('\t',xs)) = Right $ Just (replicate size color, xs)
     where size = tabSpace codeDef
@@ -127,7 +127,7 @@ charEater        _ _ _ = error "Compiler pleaser charEater"
 whenAdd :: Bool -> a -> [a] -> [a]
 whenAdd yesno a = if yesno then (a:) else id
 
-parserList :: [String] -> CodeDef -> ColorDef -> [Parser]    
+parserList :: [String] -> CodeDef [ViewColor] -> ColorDef -> [Parser [ViewColor]]
 parserList highlightDef codeDef colorDef =
       (specificParser codeDef ++)
     . (charParser colorDef:) 
@@ -214,7 +214,7 @@ addOverLines colordef errorList = snd . mapAccumL lineMarker sortedErrors . zip 
         highlightLine _ line = errorConcat ++ map (\a -> alphaBlend a errorColor) line
 
 -- | Main function to create an overview of a parsed file
-createCodeOverview :: CodeDef        -- ^ Language definition used to put some highlight/color
+createCodeOverview :: CodeDef [ViewColor] -- ^ Language definition used to put some highlight/color
                    -> ColorDef       -- ^ Colors to be used during the process.
                    -> [(String,Int)] -- ^ Error line definition, to put an highlight on some lines.
                    -> [String]       -- ^ Identifier to be 'highlighted', to highlight a search
@@ -229,15 +229,11 @@ createCodeOverview codeDef colorDef errorLines highlighted =
     where usedParser = parserList highlighted codeDef colorDef
           (firstParser : tailParser) = usedParser
 
-          parse :: ([[ViewColor]] -> [[ViewColor]], Maybe Parser) -> B.ByteString
-                -> ([[ViewColor]] -> [[ViewColor]], Maybe Parser)
           parse (prevLines, Just parser) line =  (prevLines . (line':), parser')
                 where (line', parser') = lineEval (id, line, parser line) usedParser
           parse (prevLines, Nothing) line = (prevLines . (line':), parser')
                 where (line', parser') = lineEval (id, line, firstParser line) tailParser
 
-          lineEval :: ([ViewColor] -> [ViewColor], B.ByteString, ParseResult) -> [Parser]
-                   -> ([ViewColor], Maybe Parser)
           lineEval (line,      _, Left (NextParse (vals, parser))) _ = (line vals, Just parser)
           lineEval (line,      _, Right (Just (chars, (uncons -> Nothing)))) _ = (line chars, Nothing)
           lineEval (line,(uncons -> Nothing), Right Nothing) _ = (line [], Nothing)

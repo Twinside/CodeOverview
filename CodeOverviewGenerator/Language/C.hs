@@ -35,7 +35,7 @@ cStructure = ["struct", "union", "enum", "typedef"]
 
 cStorageClass = ["static", "register", "auto", "volatile", "extern", "const", "inline"]
 
-preprocParser :: ColorDef -> Parser
+preprocParser :: ColorDef -> Parser [ViewColor]
 preprocParser colors (uncons -> Just ('#', toParse)) = preprocParse (1, toParse)
     where pColor = preprocColor colors
           preprocParse (n, uncons -> Nothing) = Right $ Just (replicate n pColor, B.empty)
@@ -43,7 +43,7 @@ preprocParser colors (uncons -> Just ('#', toParse)) = preprocParse (1, toParse)
           preprocParse _ = error "Compiler pleaser preprocParser"
 preprocParser _ _ = Right Nothing
 
-cCodeDef :: ColorDef -> CodeDef
+cCodeDef :: ColorDef -> CodeDef [ViewColor]
 cCodeDef colors = def
     where def = CodeDef
            { lineComm = strComment "//"

@@ -1,11 +1,9 @@
 module CodeOverviewGenerator.Language.Shell ( shellCodeDef ) where
 
-{-import qualified Data.Map as Map-}
-
 import CodeOverviewGenerator.Language
 import CodeOverviewGenerator.Color
 
-shellCodeDef :: ColorDef -> CodeDef
+shellCodeDef :: ColorDef -> CodeDef [ViewColor]
 shellCodeDef _colors = def
     where def = emptyCodeDef
             { lineComm = strComment  "#"

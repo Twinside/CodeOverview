@@ -18,13 +18,18 @@ import CodeOverviewGenerator.Color
 import CodeOverviewGenerator.ByteString(uncons)
 import qualified CodeOverviewGenerator.ByteString as B
 
-newtype NextParse = NextParse ([ViewColor], Parser)
-type ParseResult = Either NextParse (Maybe ([ViewColor], B.ByteString))
-type Parser = B.ByteString -> ParseResult
+newtype NextParse a =
+    NextParse (a, Parser a)
+
+type ParseResult a =
+    Either (NextParse a)
+           (Maybe (a, B.ByteString))
+
+type Parser a = B.ByteString -> ParseResult a
 
 -- | Define a language used by the image generator to put
 -- some colors in it.
-data    CodeDef = CodeDef
+data    CodeDef a = CodeDef
     { -- | Beginning marker for mono line market
       lineComm         :: Maybe B.ByteString
       -- | Beginning marker for multilines comments, like
@@ -36,13 +41,13 @@ data    CodeDef = CodeDef
       -- | Definition for identifier for the current language.
     , identParser :: Char -> Int -> Bool
       -- | Definition for strings in the current language.
-    , strParser :: Maybe (ColorDef -> Parser)
+    , strParser :: Maybe (ColorDef -> Parser a)
       -- | How we must transform tab into space.
     , tabSpace :: Int
       -- | Coloration for keywords/identifier.
     , specialIdentifier :: Map.Map B.ByteString ViewColor
       -- | List of special parsers used for a specific language.
-    , specificParser :: [Parser]
+    , specificParser :: [Parser a]
     }
 
 -- | Basic identifier parser parser the [a-zA-Z][a-zA-Z0-9]*
@@ -52,7 +57,7 @@ basicIdent c 0 = isAlpha c
 basicIdent c _ = isAlphaNum c
 
 -- | Empty code def, should work without anything else
-emptyCodeDef :: CodeDef
+emptyCodeDef :: CodeDef a
 emptyCodeDef = CodeDef
             { lineComm = Nothing
             , multiLineCommBeg = Nothing
@@ -71,7 +76,7 @@ identWithPrime c 0 = isAlpha c
 identWithPrime c _ = isAlphaNum c || c == '\''
 
 -- | Parse an integer of the form \'[0-9]+\'
-intParser :: ColorDef -> Parser
+intParser :: ColorDef -> Parser [ViewColor]
 intParser colorDef (uncons -> Just (c, toParse))
     | isDigit c = intParse (1, toParse)
         where numColor = numberColor colorDef
@@ -85,7 +90,7 @@ intParser _ _ = Right Nothing
 
 -- | Aim to parse \' \' like structures (char representation) of a given
 -- programming language.
-charParser :: ColorDef -> Parser
+charParser :: ColorDef -> Parser [ViewColor]
 charParser colorDef (uncons -> Just ('\'', rest)) = parser (1,rest)
     where color = charColor colorDef
           parser (n, uncons -> Just ('\\', uncons -> Just ('\\',xs))) =
@@ -101,7 +106,7 @@ charParser colorDef (uncons -> Just ('\'', rest)) = parser (1,rest)
 charParser _ _ = Right Nothing
 
 -- | Parse a string, ignoring the \\\"
-stringParser :: Bool -> CodeDef -> ColorDef -> Parser
+stringParser :: Bool -> CodeDef [ViewColor] -> ColorDef -> Parser [ViewColor]
 stringParser allowBreak codeDef colorDef (uncons -> Just ('"',stringSuite)) =
   stringer (color:) stringSuite
     where color = stringColor colorDef

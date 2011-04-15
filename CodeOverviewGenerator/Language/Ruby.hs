@@ -6,7 +6,7 @@ import CodeOverviewGenerator.Language
 import CodeOverviewGenerator.Language.Shell
 import CodeOverviewGenerator.Color
 
-rubyCodeDef :: ColorDef -> CodeDef
+rubyCodeDef :: ColorDef -> CodeDef [ViewColor]
 rubyCodeDef colors = def
     where shell = shellCodeDef colors
           def = shell

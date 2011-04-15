@@ -21,7 +21,7 @@ javaStructure = ["class", "enum", "extends", "implements", "interface"]
 
 -- storageClass
 {-static synchronized transient volatile final strictfp serializable-}
-javaCodeDef :: ColorDef -> CodeDef
+javaCodeDef :: ColorDef -> CodeDef [ViewColor]
 javaCodeDef colors = def
     where cdef = (cCodeDef colors)
           def = cdef {

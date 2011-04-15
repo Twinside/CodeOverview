@@ -17,7 +17,7 @@ pythonOperator	  = ["and", "in", "is", "not", "or"]
 pythonException	  = ["except", "finally", "raise", "try"]
 pythonInclude	  = ["from", "import"]
 
-pythonCodeDef :: ColorDef -> CodeDef
+pythonCodeDef :: ColorDef -> CodeDef [ViewColor]
 pythonCodeDef colors = def
     where def = (shellCodeDef colors)
            { identParser = identWithPrime

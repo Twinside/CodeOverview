@@ -5,7 +5,7 @@ module CodeOverviewGenerator.Language.Html ( htmlCodeDef ) where
 import CodeOverviewGenerator.Language
 import CodeOverviewGenerator.Color
 
-htmlCodeDef :: ColorDef -> CodeDef
+htmlCodeDef :: ColorDef -> CodeDef a
 htmlCodeDef _colors = emptyCodeDef
             { multiLineCommBeg = strComment "<!--"
             , multiLineCommEnd = strComment "-->"

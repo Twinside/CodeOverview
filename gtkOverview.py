@@ -6,6 +6,7 @@ import gtk
 import gio
 import sys
 import cairo
+import os
 from ctypes import *
 
 class XScreen(Structure):
@@ -182,6 +183,7 @@ class OverViewImage:
         if not self.initiated:
             return
         yPos = int(data.y)
+        #os.system('xvkbd -text "' + str(yPos) + 'ggzz -window ' + str(self.windowId))
         #self.keySender.sendLineChange(yPos)
 
     def updateViewSizeInformation(self, picture):
@@ -223,7 +225,7 @@ class OverViewImage:
         self.beginning = int(begin)
         self.ending = int(end)
         self.updateImage(imageFile)
-        self.keySender.windowId = int(winId)
+        self.windowId = int(winId)
         self.backColor = gtk.gdk.color_parse(backColor)
         self.window.modify_bg(gtk.STATE_NORMAL, self.backColor)
         

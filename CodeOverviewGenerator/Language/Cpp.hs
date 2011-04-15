@@ -17,7 +17,7 @@ cppOperator = ["operator", "typeid", "and", "bitor", "or", "xor", "compl"
 {-cppBoolean = ["true", "false"]-}
 cppStructure = ["class", "typename", "template", "namespace"]
 
-cppCodeDef :: ColorDef -> CodeDef
+cppCodeDef :: ColorDef -> CodeDef [ViewColor]
 cppCodeDef colors = def
     where cdef = (cCodeDef colors)
 

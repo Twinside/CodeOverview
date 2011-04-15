@@ -16,7 +16,7 @@ hTypes = ["Int", "Integer", "Char", "Bool", "Float"
          , "String", "Maybe", "Either", "Ratio", "Complex"
          , "Ordering", "IOError", "IOResult", "ExitCode"]
 
-haskellCodeDef :: ColorDef -> CodeDef
+haskellCodeDef :: ColorDef -> CodeDef [ViewColor]
 haskellCodeDef colors = def
     where def = CodeDef
                 { lineComm = strComment "--"
