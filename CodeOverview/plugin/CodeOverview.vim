@@ -4,50 +4,6 @@
 " Author: Vincent B <twinside@gmail.com>
 " Last Change: 2010 janv. 29
 " Version: 2.0
-" Require:
-"   * set nocompatible
-"       somewhere on your .vimrc
-"   * Running on Windows with .net >= 3.0
-"   * Running gVim version 7.2 or greater (not vim)
-"
-" Usage:
-"   :ShowCodeOverview 
-"       Start the overview panel.
-"
-"   :HideCodeOverview 
-"       Hide the overview panel, doesn't deactivate
-"       Also stop automatic overview generation.
-"
-"   :CodeOverviewNoAuto 
-"       Disable automatic overview generation.
-"
-"   :CodeOverviewAuto 
-"       Setup automatic overview generation.
-"
-"   :SnapshotFile 
-"       Refresh your current overview.
-"
-" Additional:
-"   let g:code_overview_use_colorscheme = 0
-"       To avoid using the current colorscheme for the
-"       code view generation.
-"
-"   let g:code_overview_autostart = 1
-"       To start the plugin directly at vim launch.
-"
-"   let g:codeoverview_autoupdate = 1
-"       To automaticly start automatic overview generation.
-"       Otherwise you have to manually call SnapshotFile
-"       to update the view.
-"       (disabled by default)
-"
-"   let g:codeOverviewShowErrorLines = 0
-"       To disable error lines layered on the overview.
-"
-"   let g:codeOverviewMaxLineCount = 10000
-"       To avoid locking up vim, you can provide a maximum
-"       line count to avoid refresh for very huges file.
-"       default is 10000
 "
 " Thanks:
 "  - Amjidanutpan Rama : forcing me to test the plugin
@@ -111,8 +67,28 @@ fun! ShowCodeOverviewParams() "{{{
     echo 's:tempFile ' . s:tempFile
     echo 's:friendProcess ' . s:friendProcess
     echo 's:overviewProcess ' . s:overviewProcess
-    echo 's:colorFile' . s:colorFile
-    echo 's:errFile' . s:errFile
+    echo 's:colorFile ' . s:colorFile
+    echo 's:errFile ' . s:errFile
+    echo 's:windowId ' . s:windowId
+endfunction "}}}
+
+" Only way to get the correct windowid on unix, is to call gvim
+" with the the --echo-wid, redirecting the output somewhere,
+fun! s:DefineWindowId() "{{{
+	let idFile = '/tmp/vimwinId'
+    if has('win32') || has('mac') || !filereadable(idFile)
+       let s:windowId = 0
+       return
+    endif
+
+    for line in readfile(idFile)
+    	if line =~ 'WID:'
+            let s:windowId = substitute(f[0], '.*WID: \(\d\+\).*', '\1', '')
+            return
+        endif
+    endfor
+
+    let s:windowId = 0
 endfunction "}}}
 
 " If we want to use the same color as the colorscheme,
@@ -189,6 +165,8 @@ fun! s:PrepareParameters() "{{{
     let s:tempFile = s:tempDir . 'previewer' . s:initPid . '.png'
     let s:colorFile = s:tempDir . 'colorFile' . s:initPid
     let s:errFile = s:tempDir . 'errFile' . s:initPid
+
+    call s:DefineWindowId()
 
     execute 'set wildignore=' . s:tempWildIgnore
 
@@ -350,17 +328,11 @@ fun! s:SnapshotFile() "{{{
     	let header = ''
     endif
 
-    if has('win32') || has('mac')
-       let winId = 0
-    else
-      let winId = $WINDOWID
-    endif
-
     let wakeText = string(winInfo.topline) 
                \ . '?' . string(lastVisibleLine)
                \ . '?' . synIDattr(hlID('Normal'), 'bg')
                \ . '?' . synIDattr(hlID('CursorLine'), 'bg')
-               \ . '?' . winId
+               \ . '?' . s:windowId
                \ . '?' . string(getwinposx())
                \ . '?' . string(getwinposy())
                \ . '?' . s:tempFile

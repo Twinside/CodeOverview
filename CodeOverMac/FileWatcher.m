@@ -60,13 +60,17 @@
 
 - (void)drawRect:(NSRect)aRect
 {
+    // draw the background to the good color
     NSRect frame = [self bounds];
 
     [backColor setFill];
     NSRectFill( frame );
     [[NSColor blackColor] setFill];
 
+    // normally draw the imageview
     [super drawRect:aRect];
+    
+    // draw the current rendering square
 }
 
 - (void)awakeFromNib
