@@ -23,8 +23,12 @@ class OverViewImage:
         #textVersion = ''.join(map(lambda n: '\\[XK_' + n + ']', str(yPos)))
         textVersion = str(int(yPos * self.imageHeight / self.actualHeight))
         command = 'xvkbd -text "' + textVersion + 'ggzz" -window ' + str(self.windowId)
-        print( command )
+
+        relativeHeight = (self.realBottom - self.realTop) / 2
+        self.realTop = max(0, yPos - relativeHeight)
+        self.realBottom = yPos + relativeHeight
         os.system(command)
+        self.drawArea.queue_draw()
 
     def updateViewSizeInformation(self, picture):
         (width, height) = (picture.get_width(), picture.get_height())
