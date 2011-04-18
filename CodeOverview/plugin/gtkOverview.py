@@ -20,8 +20,8 @@ class OverViewImage:
         if not self.initiated:
             return
         yPos = int(data.y)
-        #textVersion = ''.join(map(lambda n: '\\[XK_' + n + ']', str(yPos)))
-        textVersion = str(int(yPos * self.imageHeight / self.actualHeight))
+        lineNum = int(yPos * self.imageHeight / self.actualHeight)
+        textVersion = ''.join(map(lambda n: '\\\\[' + n + ']', str(lineNum)))
         command = 'xvkbd -text "' + textVersion + 'ggzz" -window ' + str(self.windowId)
 
         relativeHeight = (self.realBottom - self.realTop) / 2
@@ -101,7 +101,7 @@ class OverViewImage:
 
         cr.set_source_rgba(self.rectColor.red_float, 
                            self.rectColor.green_float, 
-                           self.rectColor.blue_float, 0.3)
+                           self.rectColor.blue_float, 0.6)
         cr.rectangle(0, int(self.realTop), width, int(height))
         cr.fill()
         
