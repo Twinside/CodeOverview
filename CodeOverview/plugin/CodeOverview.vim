@@ -5,33 +5,11 @@
 " Last Change: 2010 janv. 29
 " Version: 2.0
 "
-" Thanks:
-"  - Amjidanutpan Rama : forcing me to test the plugin
-"		         under Windows XP.
-" ChangeLog:
-"     * 2.0  : Adding linux Version
-"              Adding OSX Version
-"              Added color from current colorscheme.
-"     * 1.8  : Added option to start plugin automatically.
-"     * 1.7  : Added condition to avoid loading very huge file.
-"     * 1.6  : Handling of HUUUUUUGES file
-"     * 1.5  : Update in stabilities for binaries.
-"     * 1.4  : Big fix to allow maximization on Windows XP.
-"     * 1.3.1: Fixed problem of path under Windows XP
-"	       Fixed problem of overview when file has no
-"	       name
-"     * 1.3  : Fixed problem when executables are put in
-"              Program Files (yeah, I mentioned to put it
-"              in ~/vimfiles, whatever...)
-"     * 1.2  : Added check for the version of gvim.
-"     * 1.1  : fixed problem with globpath flag for not cutting-edge
-"              vim.
-"     * 1.0  : Original version
 "
-if exists("g:__CODEOVERVIEW_VIM__")
-    finish
-endif
-let g:__CODEOVERVIEW_VIM__ = 1
+"if exists("g:__CODEOVERVIEW_VIM__")
+    "finish
+"endif
+"let g:__CODEOVERVIEW_VIM__ = 1
 
 if !has("gui_running")
     finish
@@ -194,7 +172,6 @@ fun! s:InitialInit() "{{{
 endfunction "}}}
 
 fun! s:RemoveTempsFile() "{{{
-    call delete( s:wakeFile )
     call delete( s:tempFile )
     call delete( s:tempCommandFile )
     call delete( s:errFile )
@@ -202,6 +179,7 @@ fun! s:RemoveTempsFile() "{{{
     if g:code_overview_use_colorscheme
         call delete( s:colorFile )
     endif 
+    call delete( s:wakeFile )
 endfunction "}}}
 
 fun! s:StopFriendProcess() "{{{
@@ -213,12 +191,12 @@ fun! s:StopFriendProcess() "{{{
     call writefile( ["quit"], s:wakeFile )
     let s:friendProcessStarted = 0
 
-    call s:RemoveCodeOverviewHook()
-    call s:RemoveTempsFile()
-
     command! CodeOverviewNoAuto echo 'CodeOverview Friend Process not started!'
     command! CodeOverviewAuto echo 'CodeOverview Friend Process not started!'
     command! SnapshotFile echo 'CodeOverview Friend Process not started!'
+
+    call s:RemoveCodeOverviewHook()
+    call s:RemoveTempsFile()
 endfunction "}}}
 
 " Launch the tracking window for this instance of gVIM
@@ -235,6 +213,8 @@ fun! s:LaunchFriendProcess() "{{{
         call s:BuildColorConfFromColorScheme()
     endif
 
+    " Just to be sure the file is created
+    call writefile( [""], s:wakeFile )
     call s:SnapshotFile()
 
     if has('win32')
@@ -272,8 +252,8 @@ fun! s:DumpErrorLines() "{{{
             call add(outLines, d.type . ':' . string(d.lnum))
         endif
     endfor
-   
-   call writefile(outLines, s:errFile)
+
+    call writefile(outLines, s:errFile)
 endfunction "}}}
 
 " This fuction extract data from the current view,

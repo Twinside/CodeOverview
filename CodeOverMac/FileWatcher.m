@@ -71,6 +71,19 @@
     [super drawRect:aRect];
     
     // draw the current rendering square
+    NSRect viewRect = frame;
+    NSSize imageSize = [[self image] size];
+    
+    
+    viewRect.size.height = (viewEnd - viewBegin) * frame.size.height 
+                         / imageSize.height;
+    viewRect.origin.y = (frame.size.height - viewRect.size.height) // image view
+                      - (viewBegin * frame.size.height / imageSize.height);
+    
+    
+    [overColor setFill];
+    NSRectFillUsingOperation(viewRect, NSCompositeSourceOver);
+    [[NSColor blackColor] setFill];
 }
 
 - (void)awakeFromNib
@@ -90,7 +103,8 @@
                    ^{[self pollDispatch];});
 }
 
-+ (NSColor *) colorFromHexRGB:(NSString *) inColorString
++ (NSColor *) colorFromHexRGB:(NSString *)inColorString
+                     andAlpha:(CGFloat)alpha
 {
 	NSColor *result = nil;
 	unsigned int colorCode = 0;
@@ -109,7 +123,7 @@
               colorWithCalibratedRed:		(float)redByte	/ 0xff
               green:	(float)greenByte/ 0xff
               blue:	(float)blueByte	/ 0xff
-              alpha:1.0];
+              alpha:alpha];
 	return result;
 }
 
@@ -141,10 +155,12 @@
     viewEnd = [[parts objectAtIndex:1] integerValue];
     
     [backColor release];
-    backColor = [[FileWatcher colorFromHexRGB:[parts objectAtIndex:2]] retain];
+    backColor = [[FileWatcher colorFromHexRGB:[parts objectAtIndex:2]
+                                     andAlpha:1.0] retain];
     
     [overColor release];
-    overColor = [[FileWatcher colorFromHexRGB:[parts objectAtIndex:3]] retain];
+    overColor = [[FileWatcher colorFromHexRGB:[parts objectAtIndex:3]
+                                     andAlpha:0.6f] retain];
     
     // ignore 4th value
     senderWindowXpos = [[parts objectAtIndex:5] integerValue];
