@@ -83,7 +83,7 @@ fun! s:DefineWindowId() "{{{
 
     for line in readfile(idFile)
     	if line =~ 'WID:'
-            let s:windowId = substitute(f[0], '.*WID: \(\d\+\).*', '\1', '')
+            let s:windowId = substitute(line, '.*WID: \(\d\+\).*', '\1', '')
             return
         endif
     endfor
