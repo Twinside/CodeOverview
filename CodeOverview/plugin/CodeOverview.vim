@@ -35,6 +35,26 @@ endif
 
 let s:preparedParameters = 0
 let s:friendProcessStarted = 0
+let s:lastQuickfixKind = ''
+
+if !exists("g:code_overview_ignore_buffer_list")
+	let g:code_overview_ignore_buffer_list = []
+endif
+
+let s:builtinIgnoreList = [
+            \ "__Tag_List__",
+            \ "_NERD_tree_",
+            \ "NERD_tree_1",
+            \ "NERD_tree_2",
+            \ "NERD_tree_3",
+            \ "Source_Explorer",
+            \ "[BuffExplorer]",
+            \ "Todo List",
+            \ "HoogleSearch"
+            \ ]
+
+let g:code_overview_ignore_buffer_list =
+        \ g:code_overview_ignore_buffer_list + s:builtinIgnoreList
 
 fun! ShowCodeOverviewParams() "{{{
     echo 's:tempDir ' . s:tempDir
@@ -215,7 +235,7 @@ fun! s:LaunchFriendProcess() "{{{
 
     " Just to be sure the file is created
     call writefile( [""], s:wakeFile )
-    call s:SnapshotFile()
+    call s:SnapshotFile('')
 
     if has('win32')
         call system('cmd /s /c "start "CodeOverview Launcher" /b '
@@ -235,21 +255,33 @@ fun! s:LaunchFriendProcess() "{{{
 
     command! CodeOverviewNoAuto call s:RemoveCodeOverviewHook()
     command! CodeOverviewAuto call s:PutCodeOverviewHook()
-    command! SnapshotFile call s:SnapshotFile()
+    command! SnapshotFile call s:SnapshotFile('')
 
-    call s:SnapshotFile()
+    call s:SnapshotFile('')
 
+endfunction "}}}
+
+fun! s:SelectClass( kind, error ) "{{{
+	if a:kind == 'search'
+		return 'i'
+    endif
+
+    if a:error =~ '\cwarning'
+        return 'w'
+    else
+        return 'e'
+    endif
 endfunction "}}}
 
 " Kind could be 'e' for error, 'w' for
 " warning 'i' for info...
-fun! s:DumpErrorLines() "{{{
+fun! s:DumpErrorLines(kind) "{{{
 	let outLines = []
 	let currentBuffer = bufnr('%')
 
 	for d in getqflist()
 		if d.bufnr == currentBuffer
-            call add(outLines, d.type . ':' . string(d.lnum))
+            call add(outLines, s:SelectClass(a:kind, d.type) . ':' . string(d.lnum))
         endif
     endfor
 
@@ -260,10 +292,19 @@ endfunction "}}}
 " generate an overview image of the current file,
 " write an in an update file readen by the following
 " window.
-fun! s:SnapshotFile() "{{{
+fun! s:SnapshotFile(kind) "{{{
     if line('$') > g:codeOverviewMaxLineCount
         echo 'File to big, no overview generated'
         return
+    endif
+
+    if a:kind != ''
+        let s:lastQuickfixKind = a:kind
+    endif
+
+    if bufname('%') == '' ||
+     \ index(g:code_overview_ignore_buffer_list,bufname('%')) >= 0
+    	return
     endif
 
     " If file has been modified, we must dump it somewhere
@@ -292,7 +333,7 @@ fun! s:SnapshotFile() "{{{
 
     " Dump error lines
     if g:codeOverviewShowErrorLines
-    	call s:DumpErrorLines()
+    	call s:DumpErrorLines(s:lastQuickfixKind)
     	let commandLine  = commandLine . ' --errfile ' . s:errFile
     endif
 
@@ -350,14 +391,15 @@ endfunction "}}}
 
 fun! s:PutCodeOverviewHook() "{{{
     augroup CodeOverview
-        au BufNewFile * call s:SnapshotFile()
-        au BufEnter * call s:SnapshotFile()
-        au BufNew * call s:SnapshotFile()
-        au BufWritePost * call s:SnapshotFile()
-        au FilterWritePost * call s:SnapshotFile()
-        au StdinReadPost * call s:SnapshotFile()
-        au FileChangedShellPost * call s:SnapshotFile()
-        au QuickFixCmdPost * call s:SnapshotFile()
+        au BufNewFile * call s:SnapshotFile('')
+        au BufEnter * call s:SnapshotFile('')
+        au BufNew * call s:SnapshotFile('')
+        au BufWritePost * call s:SnapshotFile('')
+        au FilterWritePost * call s:SnapshotFile('')
+        au StdinReadPost * call s:SnapshotFile('')
+        au FileChangedShellPost * call s:SnapshotFile('')
+        au QuickFixCmdPost *grep* call s:SnapshotFile('search')
+        au QuickFixCmdPost *make call s:SnapshotFile('build')
     augroup END
 endfunction "}}}
 

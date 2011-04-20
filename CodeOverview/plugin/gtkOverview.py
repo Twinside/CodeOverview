@@ -7,13 +7,99 @@ import gio
 import sys
 import cairo
 import os
+from threading import *
 from ctypes import *
+
+class XRect:
+    def __init__(self, x, y, w, h, b):
+        self.x = x
+        self.y = y
+        self.width = w
+        self.height = h
+        self.border = b
+
+class XWinQueryer:
+    def __init__(self):
+        self.lib = CDLL("libX11.so.6")
+
+        self.xOpenDisplay = self.lib.XOpenDisplay
+        self.xOpenDisplay.restype = c_void_p
+
+        self.xGetGeometry = self.lib.XGetGeometry
+        self.xGetGeometry.restype = c_int
+        self.xGetGeometry.argtypes = [ c_void_p  # display
+                                     , c_int     # drawable
+                                     , POINTER(c_int)   # root back
+                                     , POINTER(c_int)   # xBack
+                                     , POINTER(c_int)   # yBack
+                                     , POINTER(c_int)   # width back
+                                     , POINTER(c_int)   # height back
+                                     , POINTER(c_int)   # border width back
+                                     , POINTER(c_int)   # depth back
+                                     ]
+
+    def getGeometry(self, windowId):
+        display = self.openDisplay()
+        print("ok " + str(windowId))
+        rootBack = c_int(0)
+        xp = c_int(0)
+        yp = c_int(0)
+        wp = c_int(0)
+        hp = c_int(0)
+        bp = c_int(0)
+        dp = c_int(0)
+        self.xGetGeometry( display
+                         , windowId
+                         , byref(rootBack)
+                         , byref(xp)
+                         , byref(yp)
+                         , byref(wp)
+                         , byref(hp)
+                         , byref(bp)
+                         , byref(dp) )
+        print("After call")
+        return XRect( xp.value, yp.value
+                    , wp.value, hp.value
+                    , bp.value )
+
+    def openDisplay(self):
+        return self.xOpenDisplay(c_char_p(0))
+
+class Poller(Thread):
+    def __init__(self, interval, function, args=[], kwargs={}):
+        Thread.__init__(self)
+        self.interval = interval
+        self.args = args
+        self.function = function
+        self.kwargs = kwargs
+        self.finished = Event()
+ 
+    def run(self):
+        while not self.finished.is_set():
+            self.finished.wait(self.interval)
+            if not self.finished.is_set():
+                self.function(*self.args, **self.kwargs)
+ 
+    def cancel(self):
+        self.finished.set()
 
 class OverViewImage:
     # when invoked (via signal delete_event), terminates the application.
     def close_application(self, widget, event, data=None):
+        self.poller.cancel()
         gtk.main_quit()
         return False
+
+    def windowTracker(self):
+        if (self.windowId <= 0):
+        	return
+
+        rectInfo = self.windowQueryer.getGeometry(self.windowId)
+        print("x:" + str(rectInfo.x) + " y:" + str(rectInfo.y) + " w:" + str(rectInfo.width) + " h:" + str(rectInfo.height))
+        (winWidth, winHeight) = self.window.get_size()
+        self.window.resize(winWidth, rectInfo.height)
+        self.window.move(rectInfo.x - winWidth - rectInfo.border, rectInfo.y)
+
 
     # is invoked when the button is clicked.  It just prints a message.
     def image_clicked(self, widget, data=None):
@@ -72,11 +158,7 @@ class OverViewImage:
         self.updateImage(imageFile)
         self.windowId = int(winId)
         self.backColor = gtk.gdk.color_parse(backColor)
-        self.window.modify_bg(gtk.STATE_NORMAL, self.backColor)
         
-        (winWidth, winHeight) = self.window.get_size()
-        self.window.move(int(winX) - winWidth, int(winY))
-
         self.rectColor = gtk.gdk.color_parse(viewRectColor)
         self.initiated = True
 
@@ -134,6 +216,11 @@ class OverViewImage:
         self.drawArea.show()
 
         self.window.add(self.drawArea)
+
+        self.windowQueryer = XWinQueryer()
+        #self.poller = Poller(1.0, self.windowTracker)
+        #self.poller.start()
+
 
 if __name__ == "__main__":
     watchedFilename = "/tmp/overviewFile" + sys.argv[1] + '.txt'
