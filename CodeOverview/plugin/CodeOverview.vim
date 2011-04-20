@@ -2,14 +2,12 @@
 " What Is This: Launch an helper window to display overview of edited files.
 " File: CodeOverview
 " Author: Vincent B <twinside@gmail.com>
-" Last Change: 2010 janv. 29
+" Last Change: 2011 Apr 20
 " Version: 2.0
-"
-"
-"if exists("g:__CODEOVERVIEW_VIM__")
-    "finish
-"endif
-"let g:__CODEOVERVIEW_VIM__ = 1
+if exists("g:__CODEOVERVIEW_VIM__")
+    finish
+endif
+let g:__CODEOVERVIEW_VIM__ = 1
 
 if !has("gui_running")
     finish
@@ -121,13 +119,19 @@ fun! s:BuildColorConfFromColorScheme() "{{{
         \ , ["label"       , 'Label'       , 'fg']
         \ , ["macro"       , 'Macro'       , 'fg']
         \
+        \ , ["errorLine"   , 'Error'       , 'bg']
+        \ , ["warningLine" , 'Todo'        , 'bg']
+        \ , ["infoLine"    , 'IncSearch'   , 'bg']
+        \
         \ ]
     
     let writtenConf = []
 
     for [progval, vimAttr, info] in conf
         let foundColor = synIDattr(synIDtrans(hlID(vimAttr)), info)
-        call add( writtenConf, progval . '=' . foundColor )
+        if foundColor != ''
+            call add( writtenConf, progval . '=' . foundColor )
+        endif
     endfor
 
     call writefile(writtenConf, s:colorFile)
@@ -351,8 +355,8 @@ fun! s:SnapshotFile(kind) "{{{
 
     let wakeText = string(winInfo.topline) 
                \ . '?' . string(lastVisibleLine)
-               \ . '?' . synIDattr(hlID('Normal'), 'bg')
-               \ . '?' . synIDattr(hlID('CursorLine'), 'bg')
+               \ . '?' . synIDattr(synIDtrans(hlID('Normal')), 'bg')
+               \ . '?' . synIDattr(synIDtrans(hlID('CursorLine')), 'bg')
                \ . '?' . s:windowId
                \ . '?' . string(getwinposx())
                \ . '?' . string(getwinposy())

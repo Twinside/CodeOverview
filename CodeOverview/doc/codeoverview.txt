@@ -142,7 +142,7 @@
                                              *g:code_overview_use_colorscheme*  >
   let g:code_overview_use_colorscheme = 1
 <
-      To use the current colorscheme for the
+      To use the current color scheme for the
       code view generation.
       Default : 1
 
@@ -155,8 +155,9 @@
                                                    *g:codeoverview_autoupdate*  >
   let g:codeoverview_autoupdate = 1
 <
-      To automaticly start automatic overview generation.
-      Otherwise you have to manually call SnapshotFile
+      To automatically start automatic overview generation,
+      in other words |:CodeOverviewAuto| is called automatically
+      Otherwise you have to manually call |:SnapshotFile|
       to update the view.
       (disabled by default)
 
