@@ -9,6 +9,7 @@ module CodeOverviewGenerator.Language ( CodeDef( .. )
                                       , stringParser 
                                       , charParser 
                                       , intParser 
+                                      , eatWhiteSpace
                                       ) where
 
 import Data.Char
@@ -125,3 +126,20 @@ stringParser allowBreak codeDef colorDef (uncons -> Just ('"',stringSuite)) =
           stringer _ _ = error "stringParser compiler pleaser"
 stringParser _ _ _ _ = Right Nothing
 
+
+-- | Eat all white space returning it's size and what's left to be
+-- parsed.
+eatWhiteSpace :: Int             -- ^ Size of space in number of cell
+             -> B.ByteString   -- ^ String to parse
+             -> (Int, B.ByteString) -- ^ Number of space ate and rest of string
+eatWhiteSpace tabSize = eater 0
+    where eater n (uncons -> Just (' ',rest)) = eater (n + 1) rest
+          eater n (uncons -> Just ('\t',rest)) = eater (n + tabSize) rest
+          eater n leftOver = (n, leftOver)
+
+{-regionParser :: B.ByteString -> B.ByteString-}
+             {--> Parser [ViewColor]-}
+{-regionParser begin end = parseRegion-}
+    {-where parseRegion str-}
+            {-| begin `B.isPrefixOf` str-}
+    
