@@ -1,9 +1,16 @@
 {-# LANGUAGE ViewPatterns #-}
-module CodeOverviewGenerator.Language ( CodeDef( .. )
+module CodeOverviewGenerator.Language ( -- * Types
+                                        CodeDef( .. )
+                                      , ColoringContext(..)
                                       , NextParse( .. )
                                       , ParseResult
                                       , Parser
+
+                                        -- * Default configurations
+                                      , defaultColoringContext 
                                       , emptyCodeDef
+
+                                        -- * Parsers
                                       , basicIdent
                                       , identWithPrime 
                                       , stringParser 
@@ -12,6 +19,7 @@ module CodeOverviewGenerator.Language ( CodeDef( .. )
                                       , eatWhiteSpace
                                       ) where
 
+import Control.Monad.State
 import Data.Char
 import qualified Data.Map as Map
 import CodeOverviewGenerator.Color
@@ -26,7 +34,18 @@ type ParseResult a =
     Either (NextParse a)
            (Maybe (a, B.ByteString))
 
-type Parser a = B.ByteString -> ParseResult a
+data ColoringContext = ColoringContext
+    { linkedDocuments :: [String]
+    , parsingDepth :: Int
+    }
+
+defaultColoringContext :: ColoringContext
+defaultColoringContext = ColoringContext
+    { linkedDocuments = []
+    , parsingDepth = 0
+    }
+
+type Parser a = B.ByteString -> State ColoringContext (ParseResult a)
 
 -- | Define a language used by the image generator to put
 -- some colors in it.
@@ -79,7 +98,7 @@ identWithPrime c _ = isAlphaNum c || c == '\''
 -- | Parse an integer of the form \'[0-9]+\'
 intParser :: ColorDef -> Parser [ViewColor]
 intParser colorDef (uncons -> Just (c, toParse))
-    | isDigit c = intParse (1, toParse)
+    | isDigit c = return $ intParse (1, toParse)
         where numColor = numberColor colorDef
               intParse (n, uncons -> Just (c', rest))
                 | isDigit c' = intParse (n + 1, rest)
@@ -87,12 +106,12 @@ intParser colorDef (uncons -> Just (c, toParse))
               intParse (n, uncons -> Nothing) =
                 Right $ Just (replicate n numColor, B.empty)
               intParse _ = error "Compiler pleaser - intParser"
-intParser _ _ = Right Nothing
+intParser _ _ = return $ Right Nothing
 
 -- | Aim to parse \' \' like structures (char representation) of a given
 -- programming language.
 charParser :: ColorDef -> Parser [ViewColor]
-charParser colorDef (uncons -> Just ('\'', rest)) = parser (1,rest)
+charParser colorDef (uncons -> Just ('\'', rest)) = return $ parser (1,rest)
     where color = charColor colorDef
           parser (n, uncons -> Just ('\\', uncons -> Just ('\\',xs))) =
               parser (n + 2,xs)
@@ -104,7 +123,7 @@ charParser colorDef (uncons -> Just ('\'', rest)) = parser (1,rest)
           parser (n, uncons -> Nothing) =
                 Right $ Just (replicate n color, B.empty)
           parser (_, _) = error "Compiler pleaser charParser"
-charParser _ _ = Right Nothing
+charParser _ _ = return $ Right Nothing
 
 -- | Parse a string, ignoring the \\\"
 stringParser :: Bool -> CodeDef [ViewColor] -> ColorDef -> Parser [ViewColor]
@@ -114,17 +133,17 @@ stringParser allowBreak codeDef colorDef (uncons -> Just ('"',stringSuite)) =
           empty = emptyColor colorDef
           tabSize = tabSpace codeDef
           stringer acc (uncons -> Nothing) = if allowBreak
-                                then Left $ NextParse (acc [], stringer id)
-                                else Right Nothing
+                                then return . Left $ NextParse (acc [], stringer id)
+                                else return $ Right Nothing
           stringer acc (uncons -> Just ('\\', uncons -> Just ('"',xs))) =
               stringer (acc . ([color, color]++)) xs
           stringer acc (uncons -> Just (' ',xs)) = stringer (acc . (empty:)) xs
           stringer acc (uncons -> Just ('\t',xs)) = 
             stringer (acc . (replicate tabSize empty ++)) xs
-          stringer acc (uncons -> Just ('"',xs)) = Right $ Just (acc [color], xs)
+          stringer acc (uncons -> Just ('"',xs)) = return . Right $ Just (acc [color], xs)
           stringer acc (uncons -> Just (_,xs)) = stringer (acc . (color:)) xs
           stringer _ _ = error "stringParser compiler pleaser"
-stringParser _ _ _ _ = Right Nothing
+stringParser _ _ _ _ = return $ Right Nothing
 
 
 -- | Eat all white space returning it's size and what's left to be

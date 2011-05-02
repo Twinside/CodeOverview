@@ -1,6 +1,7 @@
 {-# LANGUAGE ViewPatterns #-}
 module CodeOverviewGenerator.Language.C( cCodeDef ) where
 
+import Control.Monad.State
 import qualified Data.Map as M
 import Data.Char
 import CodeOverviewGenerator.Language
@@ -45,7 +46,8 @@ at (n, buff) = if B.length buff <= n
 
 -- | '#..... ' -> (beforeCount, ".....", spacecount)
 preprocParser :: Parser (Int, B.ByteString, Int)
-preprocParser (uncons -> Just ('#', toParse)) = preprocParse (1 + preprocCommandStart, toParse)
+preprocParser (uncons -> Just ('#', toParse)) =
+  return $ preprocParse (1 + preprocCommandStart, toParse)
     where (preprocCommandStart, _) = eatWhiteSpace 4 toParse
           preprocParse (at -> (n, Nothing)) = Right $ Just ((n, B.empty, 0), B.empty)
           preprocParse (at -> (n,  Just (c,rest))) 
@@ -53,12 +55,15 @@ preprocParser (uncons -> Just ('#', toParse)) = preprocParse (1 + preprocCommand
             | otherwise = Right $ Just ((n, B.take n rest, sp + 1), wholeRest)
                 where (sp, wholeRest) = eatWhiteSpace 4 rest
           preprocParse _ = error "Compiler pleaser preprocParser"
-preprocParser _ = Right Nothing
+preprocParser _ = return $ Right Nothing
 
 includeParser :: ColorDef -> ((Int, B.ByteString, Int),B.ByteString) 
-              -> ParseResult [ViewColor]
-includeParser colors ((initSize, command, n), rest) = trace ("#include " ++ show initSize ++ " spaceCount:" ++ show n ++ " rest:" ++ show (B.length rest)) $ 
-  Right $ Just (colorLine, B.empty)
+              -> State ColoringContext (ParseResult [ViewColor])
+includeParser colors ((initSize, command, n), rest) =
+    trace ("#include " ++ show initSize 
+         ++ " spaceCount:" ++ show n 
+         ++ " rest:" ++ show (B.length rest)) $ 
+  return . Right $ Just (colorLine, B.empty)
     where incColor = stringColor colors
           spaceColor = emptyColor colors
           preproColor = preprocColor colors
@@ -70,7 +75,7 @@ includeParser colors ((initSize, command, n), rest) = trace ("#include " ++ show
 
 preprocAdvancedList :: M.Map B.ByteString
                             (ColorDef -> ((Int, B.ByteString, Int),B.ByteString) 
-                                      -> ParseResult [ViewColor])
+                                      -> State ColoringContext (ParseResult [ViewColor]))
 preprocAdvancedList = M.fromList
     [ (B.pack "include", includeParser)
     {-, (B.pack "if", semiCommentParser)-}
@@ -82,15 +87,15 @@ displayPreproc colorDef (n, command, spaceCount) = colors
           colors = replicate totalSize $ preprocColor colorDef
 
 preprocHighlighter :: ColorDef -> Parser [ViewColor]
-preprocHighlighter colorDef bt = case preprocParser bt of
-    Left (NextParse (payload, _)) ->
-        Right $ Just (displayPreproc colorDef payload, B.empty)
-    Right Nothing -> Right Nothing
-    Right (Just payload@(parsedCommand@(_, command, _) , _rest)) -> trace (show command) $
-       case command `M.lookup` preprocAdvancedList of
-            Just parser -> parser colorDef payload
-            Nothing -> Right $ Just
-                (displayPreproc colorDef parsedCommand, B.empty)
+preprocHighlighter colorDef bt = preprocParser bt >>= resAnalyzer
+    where resAnalyzer (Left (NextParse (payload, _))) =
+            return . Right $ Just (displayPreproc colorDef payload, B.empty)
+          resAnalyzer (Right Nothing) = return $ Right Nothing
+          resAnalyzer (Right (Just payload@(parsedCommand@(_, command, _) , _rest))) =
+            case command `M.lookup` preprocAdvancedList of
+                Just parser -> parser colorDef payload
+                Nothing -> return . Right $ Just
+                    (displayPreproc colorDef parsedCommand, B.empty)
 
 cCodeDef :: ColorDef -> CodeDef [ViewColor]
 cCodeDef colors = def
