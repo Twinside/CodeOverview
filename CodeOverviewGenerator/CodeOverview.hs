@@ -224,8 +224,8 @@ createCodeOverview :: CodeDef [ViewColor] -- ^ Language definition used to put s
                    -> [(String,Int)] -- ^ Error line definition, to put an highlight on some lines.
                    -> [String]       -- ^ Identifier to be 'highlighted', to highlight a search
                    -> [B.ByteString]       -- ^  The lines from the file
-                   -> [[ViewColor]]
-createCodeOverview codeDef colorDef errorLines highlighted file = fst $
+                   -> ([[ViewColor]], ColoringContext)
+createCodeOverview codeDef colorDef errorLines highlighted file =
     runState (createCodeOverview' codeDef colorDef errorLines highlighted file)
              defaultColoringContext 
 

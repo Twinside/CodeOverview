@@ -4,11 +4,11 @@ module CodeOverviewGenerator.Language.C( cCodeDef ) where
 import Control.Monad.State
 import qualified Data.Map as M
 import Data.Char
+import Data.Maybe( fromJust )
 import CodeOverviewGenerator.Language
 import CodeOverviewGenerator.Color
 import CodeOverviewGenerator.ByteString( uncons )
 import qualified CodeOverviewGenerator.ByteString as B
-import Debug.Trace
 
 cStatement, cLabel, cConditional, cRepeat, cType, cStructure,
     cStorageClass :: [String]
@@ -57,16 +57,23 @@ preprocParser (uncons -> Just ('#', toParse)) =
           preprocParse _ = error "Compiler pleaser preprocParser"
 preprocParser _ = return $ Right Nothing
 
+parseInclude :: B.ByteString -> Maybe LinkedFile
+parseInclude str = case between '"' '"' str of
+    Just s -> Just . LocalInclude $ B.unpack s
+    Nothing -> maybe Nothing (Just . SystemInclude . B.unpack) 
+            $ between '<' '>' str
+
 includeParser :: ColorDef -> ((Int, B.ByteString, Int),B.ByteString) 
               -> State ColoringContext (ParseResult [ViewColor])
-includeParser colors ((initSize, command, n), rest) =
-    trace ("#include " ++ show initSize 
-         ++ " spaceCount:" ++ show n 
-         ++ " rest:" ++ show (B.length rest)) $ 
+includeParser colors ((initSize, command, n), rest) = do
+  when (includeFile /= Nothing)
+       (addIncludeFile $ fromJust includeFile)
   return . Right $ Just (colorLine, B.empty)
     where incColor = stringColor colors
           spaceColor = emptyColor colors
           preproColor = preprocColor colors
+
+          includeFile = parseInclude $ B.drop (initSize + n) rest
 
           colorLine = replicate (initSize + B.length command + 1) preproColor
                     ++ replicate n spaceColor

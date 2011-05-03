@@ -163,12 +163,15 @@ performTransformation option path = do
     errorLines <- loadErrorFile option
     when (overVerbose option)
          (putStrLn $ "highlight List : " ++ show (overHighlighted option))
-    let pixelList = createCodeOverview 
+    let (pixelList, ctxt) = createCodeOverview 
                         (codeDef colorDef)
                         colorDef
                         errorLines
                         (overHighlighted option)
                         $ B.lines file
+    when (overVerbose option)
+         (mapM_ (\f -> putStrLn $ "Included : " ++ show f) 
+              $ linkedDocuments ctxt)
     if overTop option >= 0
        then return $ addOverMask colorDef (0, overTop option - 1)
                                           (5000, overHiSize option - 1)

@@ -3,6 +3,7 @@ module CodeOverviewGenerator.Language ( -- * Types
                                         CodeDef( .. )
                                       , ColoringContext(..)
                                       , NextParse( .. )
+                                      , LinkedFile( .. )
                                       , ParseResult
                                       , Parser
 
@@ -11,7 +12,9 @@ module CodeOverviewGenerator.Language ( -- * Types
                                       , emptyCodeDef
 
                                         -- * Parsers
+                                      , addIncludeFile
                                       , basicIdent
+                                      , between
                                       , identWithPrime 
                                       , stringParser 
                                       , charParser 
@@ -34,10 +37,16 @@ type ParseResult a =
     Either (NextParse a)
            (Maybe (a, B.ByteString))
 
+data LinkedFile =
+      LocalInclude String
+    | SystemInclude String
+    deriving (Eq, Show)
+
 data ColoringContext = ColoringContext
-    { linkedDocuments :: [String]
+    { linkedDocuments :: [LinkedFile]
     , parsingDepth :: Int
     }
+    deriving Show
 
 defaultColoringContext :: ColoringContext
 defaultColoringContext = ColoringContext
@@ -75,6 +84,11 @@ data    CodeDef a = CodeDef
 basicIdent :: Char -> Int -> Bool
 basicIdent c 0 = isAlpha c
 basicIdent c _ = isAlphaNum c
+
+addIncludeFile :: LinkedFile -> State ColoringContext ()
+addIncludeFile f = do
+    ctxt <- get
+    put $ ctxt { linkedDocuments = f : linkedDocuments ctxt }
 
 -- | Empty code def, should work without anything else
 emptyCodeDef :: CodeDef a
@@ -145,6 +159,12 @@ stringParser allowBreak codeDef colorDef (uncons -> Just ('"',stringSuite)) =
           stringer _ _ = error "stringParser compiler pleaser"
 stringParser _ _ _ _ = return $ Right Nothing
 
+-- | Parse a[^b]b where a is the first argument and b the second one
+between :: Char -> Char -> B.ByteString -> Maybe B.ByteString
+between a b (uncons -> Just (c, rest))
+  | c /= a = Nothing
+  | otherwise = Just $ B.takeWhile (/= b) rest
+between _ _ _ = Nothing
 
 -- | Eat all white space returning it's size and what's left to be
 -- parsed.
