@@ -1,4 +1,5 @@
 import CodeOverviewGenerator.CodeOverview
+import CodeOverviewGenerator.GraphCreator
 import CodeOverviewGenerator.Language
 import CodeOverviewGenerator.Language.C
 import CodeOverviewGenerator.Language.Cpp
