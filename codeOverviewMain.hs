@@ -34,6 +34,7 @@ data OverOption = OverOption
       , overFiles :: [String]
       , overHighlighted :: [String]
       , overErrFile :: Maybe String
+      , overGraph :: Bool
       }
 
 defaultOption :: OverOption
@@ -49,6 +50,7 @@ defaultOption = OverOption
     , overFiles = []
     , overHighlighted = []
     , overErrFile = Nothing
+    , overGraph = False
     }
 
 pngIzeExtension :: FilePath -> FilePath
@@ -75,6 +77,8 @@ commonOption =
                                "Show progression and various information"
     , Option ['V'] ["version"] (NoArg (\o -> o{overVersion = True}))
                                "Show version number and various information"
+    , Option []    ["graph"]   (NoArg (\o -> o{overGraph = True}))
+                               "Create a graph from a bunch of code sources."
     , Option []    ["errfile"]  (ReqArg (\f o -> o {overErrFile = Just f}) "FILENAME") "Error lines"
     ]
 
@@ -153,13 +157,25 @@ codeDefOfExt option path extension =
               return code)
         $ lookup extension extensionAssociation
 
-performTransformation :: OverOption -> FilePath -> IO [[ViewColor]]
-performTransformation option path = do
-    file <- B.readFile path
+parserOfFile :: OverOption -> FilePath -> IO (ColorDef -> CodeDef [ViewColor])
+parserOfFile option path =
     let (fname, ext) = splitExtension path
         fileExt = if ext == "" then snd $ splitFileName fname
                                else ext
-    codeDef <- codeDefOfExt option path fileExt
+    in codeDefOfExt option path fileExt
+
+parserForFile :: FilePath -> ColorDef -> CodeDef [ViewColor]
+parserForFile path = maybe (const emptyCodeDef) snd
+                   $ fileExt `lookup` extensionAssociation
+    where (fname, ext) = splitExtension path
+          fileExt = if ext == "" then snd $ splitFileName fname
+                                 else ext
+                    
+
+performTransformation :: OverOption -> FilePath -> IO [[ViewColor]]
+performTransformation option path = do
+    file <- B.readFile path
+    codeDef <- parserOfFile option path
     colorDef <- loadConf option
     errorLines <- loadErrorFile option
     when (overVerbose option)
@@ -187,15 +203,8 @@ printHelp = putStrLn helpText
                     ++ "Options :\n"
           helpText = usageInfo helpHeader commonOption 
 
-main :: IO ()
-main = do
-    options <- getArgs >>= loadArgs
-    when (overHelp options)
-         (printHelp >> exitWith ExitSuccess)
-    when (null $ overFiles options)
-         (hPutStrLn stderr "Error : no file input given (try --help for futher information)"
-         >> exitWith (ExitFailure 1))
-
+createSingleFile :: OverOption -> IO ()
+createSingleFile options = do
     mapM_ (\file ->
                 do when (overVerbose options)
                         (putStrLn $ "Processing " ++ file)
@@ -207,4 +216,27 @@ main = do
                                     (putStrLn $ "Writing image at" ++ outPath)
                                savePngImage options outPath pixels)
                    ) $ overFiles options
+
+createGraph :: OverOption -> IO ()
+createGraph options = do
+    colorDef <- loadConf options
+
+    when (overVerbose options)
+         (putStrLn "creating graph")
+
+    createIncludeGraph parserForFile colorDef
+                       "graph.dot"
+                       [] $ overFiles options
+
+main :: IO ()
+main = do
+    options <- getArgs >>= loadArgs
+    when (overHelp options)
+         (printHelp >> exitWith ExitSuccess)
+    when (null $ overFiles options)
+         (hPutStrLn stderr "Error : no file input given (try --help for futher information)"
+         >> exitWith (ExitFailure 1))
+    if overGraph options
+       then createGraph options
+       else createSingleFile options
 
