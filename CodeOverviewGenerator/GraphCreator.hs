@@ -44,12 +44,13 @@ addPath path = do
 -- The graph is created in graphviz format to be used
 -- with the tools \'dot\' or \'neato\'.
 createIncludeGraph :: (FilePath -> ColorDef -> CodeDef [ViewColor]) -- ^ Map a file to a parser.
+                   -> Bool       -- ^ If display verbose information
                    -> ColorDef   -- ^ Color definition used to create code thumbnail.
                    -> FilePath   -- ^ Path for the graph writing.
                    -> [FilePath] -- ^ Directory used to track includes
                    -> [FilePath] -- ^ Initial file list to draw.
                    -> IO ()
-createIncludeGraph codeMapper colorDef 
+createIncludeGraph codeMapper verbose colorDef 
                    graphVizFile includeDirectory initialFiles = 
   flip evalStateT M.empty $ do
    currDir <- liftIO getCurrentDirectory
@@ -67,6 +68,7 @@ createIncludeGraph codeMapper colorDef
 
         fileProcess :: Handle -> FilePath -> StateT FileCollection IO Int
         fileProcess handle filePath = do
+            when verbose (liftIO . putStrLn $ "> Processing file : " ++ filePath)
             fileId <- addPath filePath
             file <- liftIO $ B.readFile filePath
             let parser = codeMapper filePath colorDef
@@ -84,11 +86,13 @@ createIncludeGraph codeMapper colorDef
                                 ++ takeFileName filePath ++ "|\"]"
 
             forM_ foundFiles (\f -> do
+                when verbose (liftIO . putStrLn $ "  -> " ++ show f)
                 expandFilename <- liftIO $ expandPath includeDirectory    
                                                     filePath f
                 case expandFilename of
                     Nothing -> return ()
                     Just fullPath -> do
+                        when verbose (liftIO . putStrLn $ "     `- " ++ fullPath)
                         idx <- getFileSubId handle fullPath
                         liftIO . hPutStrLn handle $ 
                             "p" ++ show fileId ++ " -> p" ++ show idx ++ ";"

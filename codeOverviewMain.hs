@@ -31,9 +31,10 @@ data OverOption = OverOption
       , overVerbose :: Bool
       , overTop :: Int
       , overHiSize :: Int
-      , overFiles :: [String]
+      , overFiles :: [FilePath]
       , overHighlighted :: [String]
-      , overErrFile :: Maybe String
+      , overErrFile :: Maybe FilePath
+      , overIncludeDirs :: [FilePath]
       , overGraph :: Bool
       }
 
@@ -51,6 +52,7 @@ defaultOption = OverOption
     , overHighlighted = []
     , overErrFile = Nothing
     , overGraph = False
+    , overIncludeDirs = []
     }
 
 pngIzeExtension :: FilePath -> FilePath
@@ -79,6 +81,8 @@ commonOption =
                                "Show version number and various information"
     , Option []    ["graph"]   (NoArg (\o -> o{overGraph = True}))
                                "Create a graph from a bunch of code sources."
+    , Option ['I'] ["include-dir"] (ReqArg (\f o -> o { overIncludeDirs = overIncludeDirs o ++ [f]}) "Directory")
+                                   "Add a directory to search for include files."
     , Option []    ["errfile"]  (ReqArg (\f o -> o {overErrFile = Just f}) "FILENAME") "Error lines"
     ]
 
@@ -224,9 +228,9 @@ createGraph options = do
     when (overVerbose options)
          (putStrLn "creating graph")
 
-    createIncludeGraph parserForFile colorDef
-                       "graph.dot"
-                       [] $ overFiles options
+    createIncludeGraph parserForFile (overVerbose options)
+                       colorDef "graph.dot"
+                       (overIncludeDirs options) $ overFiles options
 
 main :: IO ()
 main = do
