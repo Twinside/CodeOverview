@@ -53,10 +53,11 @@ createIncludeGraph :: (FilePath -> ColorDef -> CodeDef [ViewColor]) -- ^ Map a f
 createIncludeGraph codeMapper verbose colorDef 
                    graphVizFile includeDirectory initialFiles = 
   flip evalStateT M.empty $ do
+   fileList <- liftIO $ mapM canonicalizePath initialFiles
    currDir <- liftIO getCurrentDirectory
    outHandle <- liftIO $ openFile graphVizFile WriteMode
    liftIO $ hPutStrLn outHandle "digraph g {"
-   mapM_ (getFileSubId outHandle . (currDir </>)) initialFiles
+   mapM_ (getFileSubId outHandle . (currDir </>)) fileList
    liftIO $ hPutStrLn outHandle "}"
    liftIO $ hClose outHandle
   where getFileSubId :: Handle -> FilePath -> StateT FileCollection IO Int
@@ -92,8 +93,9 @@ createIncludeGraph codeMapper verbose colorDef
                 case expandFilename of
                     Nothing -> return ()
                     Just fullPath -> do
-                        when verbose (liftIO . putStrLn $ "     `- " ++ fullPath)
-                        idx <- getFileSubId handle fullPath
+                        canonicalFilename <- liftIO $ canonicalizePath fullPath
+                        when verbose (liftIO . putStrLn $ "     `- " ++ canonicalFilename)
+                        idx <- getFileSubId handle canonicalFilename
                         liftIO . hPutStrLn handle $ 
                             "p" ++ show fileId ++ " -> p" ++ show idx ++ ";"
                 )
