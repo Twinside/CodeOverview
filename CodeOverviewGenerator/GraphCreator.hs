@@ -80,7 +80,8 @@ createIncludeGraph codeMapper colorDef
 
             liftIO . hPutStrLn handle $ 
                 "p" ++ show fileId ++ " [image=\"" 
-                                ++ outFileName ++  "\"]"
+                                ++ outFileName ++  "\", shape=\"box\", label=\"" 
+                                ++ takeFileName filePath ++ "|\"]"
 
             forM_ foundFiles (\f -> do
                 expandFilename <- liftIO $ expandPath includeDirectory    
