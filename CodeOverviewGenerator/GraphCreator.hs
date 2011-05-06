@@ -57,6 +57,8 @@ createIncludeGraph codeMapper verbose colorDef
    currDir <- liftIO getCurrentDirectory
    outHandle <- liftIO $ openFile graphVizFile WriteMode
    liftIO $ hPutStrLn outHandle "digraph g {"
+   liftIO $ hPutStrLn outHandle "    overlap=false"
+   liftIO $ hPutStrLn outHandle "    splines=true"
    mapM_ (getFileSubId outHandle . (currDir </>)) fileList
    liftIO $ hPutStrLn outHandle "}"
    liftIO $ hClose outHandle
@@ -73,18 +75,26 @@ createIncludeGraph codeMapper verbose colorDef
             fileId <- addPath filePath
             file <- liftIO $ B.readFile filePath
             let parser = codeMapper filePath colorDef
+                fileLines = B.lines file
+                lineCount = length fileLines
                 (img, context) = createCodeOverview parser
-                                        colorDef [] []
-                                        (B.lines file)
+                                        colorDef [] [] fileLines
                 foundFiles = linkedDocuments context
                 outFileName = "file" ++ show fileId ++ ".png"
+                maxLineSize = if null img then 30 else maximum $ map length img
+                nodeWidth = (toEnum maxLineSize / 300.0) :: Double
+                nodeHeight = (toEnum lineCount / 300.0) :: Double
+
             when (not $ null img)
                  (liftIO $ savePng24BitAlpha outFileName img)
 
+            liftIO $ print (lineCount, maxLineSize)
             liftIO . hPutStrLn handle $ 
                 "p" ++ show fileId ++ " [image=\"" 
                                 ++ outFileName ++  "\", shape=\"box\", label=\"" 
-                                ++ takeFileName filePath ++ "|\"]"
+                                ++ takeFileName filePath ++ "\" width=\"" 
+                                ++ show nodeWidth ++ "\" height\""
+                                ++ show nodeHeight ++ "\"]"
 
             forM_ foundFiles (\f -> do
                 when verbose (liftIO . putStrLn $ "  -> " ++ show f)
