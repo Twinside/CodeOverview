@@ -1,5 +1,7 @@
-module CodeOverviewGenerator.GraphCreator( createIncludeGraph ) where
+-- | Moduule in charge of include graph generation
+module CodeOverviewGenerator.GraphCreator( listAllSourceFiles, createIncludeGraph ) where
 
+import Control.Applicative
 import Control.Monad.State
 import qualified Data.Map as M
 import System.FilePath
@@ -38,6 +40,22 @@ addPath path = do
     let newId = M.size visited + 1
     put $ M.insert path newId visited
     return newId
+
+-- | List all source code files in the directory and
+-- subdirectory if recursive
+listAllSourceFiles :: (FilePath -> Bool) -- ^ Tell if the file is a source file.
+                   -> Bool              -- ^ Is listing recursive
+                   -> FilePath         -- ^ Scanning root.
+                   -> IO [FilePath]
+listAllSourceFiles isSourceFile recursive path = do
+    elemList <- filter (\p -> p /= "." && p /= "..") <$> getDirectoryContents path
+    concat <$> forM elemList (\p -> do
+        isDirectory <- doesDirectoryExist p
+        case (isDirectory, recursive, isSourceFile p) of
+            (True, True,    _) -> 
+                    listAllSourceFiles isSourceFile recursive p
+            (_   ,    _, True) -> return [path </> p]
+            _                  -> return [])
 
 -- | Create a graph visualisation of a bunch of files.
 -- Follow includes files and include them in the graph.
@@ -88,7 +106,6 @@ createIncludeGraph codeMapper verbose colorDef
             when (not $ null img)
                  (liftIO $ savePng24BitAlpha outFileName img)
 
-            liftIO $ print (lineCount, maxLineSize)
             liftIO . hPutStrLn handle $ 
                 "p" ++ show fileId ++ " [image=\"" 
                                 ++ outFileName ++  "\", shape=\"box\", label=\"" 

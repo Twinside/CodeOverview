@@ -1,26 +1,17 @@
+import Control.Monad( when )
+import System.Console.GetOpt
+import System.Directory
+import System.Environment
+import System.Exit
+import System.FilePath
+import System.IO
+
+import CodeOverviewGenerator.Language
 import CodeOverviewGenerator.CodeOverview
 import CodeOverviewGenerator.GraphCreator
-import CodeOverviewGenerator.Language
-import CodeOverviewGenerator.Language.C
-import CodeOverviewGenerator.Language.Cpp
-import CodeOverviewGenerator.Language.Java
-import CodeOverviewGenerator.Language.Ocaml
-import CodeOverviewGenerator.Language.Haskell
-import CodeOverviewGenerator.Language.Python
-import CodeOverviewGenerator.Language.Shell
-import CodeOverviewGenerator.Language.Ruby
-import CodeOverviewGenerator.Language.Html
+import CodeOverviewGenerator.LanguageAssociation
 import qualified CodeOverviewGenerator.ByteString as B
 import Png
-
-import Control.Monad( when )
-
-import System.IO
-import System.Exit
-import System.Environment
-import System.FilePath
-
-import System.Console.GetOpt
 
 data OverOption = OverOption
       { overOut :: String -> String
@@ -36,6 +27,7 @@ data OverOption = OverOption
       , overErrFile :: Maybe FilePath
       , overIncludeDirs :: [FilePath]
       , overGraph :: Bool
+      , overRecursiveDiscovery :: Bool
       }
 
 defaultOption :: OverOption
@@ -53,6 +45,7 @@ defaultOption = OverOption
     , overErrFile = Nothing
     , overGraph = False
     , overIncludeDirs = []
+    , overRecursiveDiscovery = False
     }
 
 pngIzeExtension :: FilePath -> FilePath
@@ -61,27 +54,29 @@ pngIzeExtension = (++ ".png") . fst . splitExtension
 commonOption :: [OptDescr (OverOption -> OverOption)]
 commonOption =
     [ 
-      Option ['a'] ["alpha"]   (NoArg (\o -> o{overTransparent = True}))
+      Option "a" ["alpha"]   (NoArg (\o -> o{overTransparent = True}))
                                "Produce a png with transparency"
-    , Option ['h'] ["help"]    (NoArg (\o -> o{ overHelp = True}))
+    , Option "h" ["help"]    (NoArg (\o -> o{ overHelp = True}))
                                "Display inline help"
-    , Option ['o'] ["output"]  (ReqArg (\f o -> o{ overOut = const f}) "FILE")
+    , Option "o" ["output"]  (ReqArg (\f o -> o{ overOut = const f}) "FILE")
                                "Output FILE, by default same name with extension replaced."
-    , Option ['c'] ["conf"]    (ReqArg (\f o -> o{ overConf = f}) "FILECONF")
+    , Option "c" ["conf"]    (ReqArg (\f o -> o{ overConf = f}) "FILECONF")
                                "Configuration file, to configure colors."
     , Option []    ["vs"]      (ReqArg (\f o -> o{overHiSize=read f}) "Size")
                                "Viewport size (in lines)."
     , Option []    ["hi"]      (ReqArg (\f o -> o{overHighlighted = f:overHighlighted o}) "Highlight")
                                "Highlight a word"
-    , Option ['t'] ["top"]     (ReqArg (\f o -> o{overTop=read f}) "TOP")
+    , Option "t" ["top"]     (ReqArg (\f o -> o{overTop=read f}) "TOP")
                                "Viewport beginning line"
-    , Option ['v'] ["verbose"] (NoArg (\o -> o{overVerbose = True}))
+    , Option "v" ["verbose"] (NoArg (\o -> o{overVerbose = True}))
                                "Show progression and various information"
-    , Option ['V'] ["version"] (NoArg (\o -> o{overVersion = True}))
+    , Option "V" ["version"] (NoArg (\o -> o{overVersion = True}))
                                "Show version number and various information"
     , Option []    ["graph"]   (NoArg (\o -> o{overGraph = True}))
                                "Create a graph from a bunch of code sources."
-    , Option ['I'] ["include-dir"] (ReqArg (\f o -> o { overIncludeDirs = overIncludeDirs o ++ [f]}) "Directory")
+    , Option "r"   ["recursive-discovery"] (NoArg (\o -> o{ overRecursiveDiscovery = True }))
+                               "Try to find source file for graph drawing automatically."
+    , Option "I" ["include-dir"] (ReqArg (\f o -> o { overIncludeDirs = overIncludeDirs o ++ [f]}) "Directory")
                                    "Add a directory to search for include files."
     , Option []    ["errfile"]  (ReqArg (\f o -> o {overErrFile = Just f}) "FILENAME") "Error lines"
     ]
@@ -95,32 +90,6 @@ loadArgs args =
                                   
          (opts, file, _) -> return $ 
              (foldr (\f opt -> f opt) defaultOption opts){ overFiles = file }
-             
-extensionAssociation :: [(String, (String, ColorDef -> CodeDef [ViewColor]))]
-extensionAssociation =
-    [ (".hs"    , ("haskell"      , haskellCodeDef))
-    , (".c"     , ("C"            , cCodeDef))
-    , (".h"     , ("C/C++ Header" , cppCodeDef))
-    , (".C"     , ("C++"          , cppCodeDef))
-    , (".cs"    , ("C#"           , cppCodeDef))
-    , (".cpp"   , ("C++"          , cppCodeDef))
-    , (".cc"    , ("C++"          , cppCodeDef))
-    , (".java"  , ("Java"         , javaCodeDef))
-    , (".js"    , ("Javascript"   , cppCodeDef))
-    , (".m"     , ("Objective C"  , cppCodeDef))
-    , (".ml"    , ("OCaml"        , ocamlCodeDef))
-    , (".mli"   , ("OCaml"        , ocamlCodeDef))
-    , (".fs"    , ("F#"           , ocamlCodeDef))
-    , (".fsi"   , ("F#"           , ocamlCodeDef))
-    , (".py"    , ("Python"       , pythonCodeDef))
-    , (".sh"    , ("Shell Script" , shellCodeDef))
-    , ("Makefile", ("Shell Script", shellCodeDef))
-    , (".rb"    , ("Ruby"         , rubyCodeDef))
-    , (".html"  , ("HTML"         , htmlCodeDef))
-    , (".htm"   , ("HTML"         , htmlCodeDef))
-    , (".xml"   , ("XML"          , htmlCodeDef))
-    , (".xhtml" , ("xHTML"        , htmlCodeDef))
-    ]
 
 loadConf :: OverOption -> IO ColorDef
 loadConf opts
@@ -152,6 +121,35 @@ savePngImage option path pixels
         where toRgb pixelsList =
                   [map (\(a,b,c,_) -> (a,b,c)) line | line <- pixelsList]
 
+
+performTransformation :: OverOption -> FilePath -> IO [[ViewColor]]
+performTransformation option path = do
+    file <- B.readFile path
+    codeDef <- parserOfFile option path
+    colorDef <- loadConf option
+    errorLines <- loadErrorFile option
+    when (overVerbose option)
+         (putStrLn $ "highlight List : " ++ show (overHighlighted option))
+    let (pixelList, _) = createCodeOverview 
+                            (codeDef colorDef)
+                            colorDef
+                            errorLines
+                            (overHighlighted option)
+                            $ B.lines file
+    if overTop option >= 0
+       then return $ addOverMask colorDef (0, overTop option - 1)
+                                          (5000, overHiSize option - 1)
+                                          pixelList
+       else return pixelList
+
+printHelp :: IO ()
+printHelp = putStrLn helpText
+    where helpHeader = "codeOverview usage :\n"
+                    ++ "  codeOverview [OPTIONS] files...\n"
+                    ++ "\n"
+                    ++ "Options :\n"
+          helpText = usageInfo helpHeader commonOption 
+
 codeDefOfExt :: OverOption -> String -> String -> IO (ColorDef -> CodeDef [ViewColor])
 codeDefOfExt option path extension =
     maybe (return $ const emptyCodeDef) 
@@ -167,45 +165,6 @@ parserOfFile option path =
         fileExt = if ext == "" then snd $ splitFileName fname
                                else ext
     in codeDefOfExt option path fileExt
-
-parserForFile :: FilePath -> ColorDef -> CodeDef [ViewColor]
-parserForFile path = maybe (const emptyCodeDef) snd
-                   $ fileExt `lookup` extensionAssociation
-    where (fname, ext) = splitExtension path
-          fileExt = if ext == "" then snd $ splitFileName fname
-                                 else ext
-                    
-
-performTransformation :: OverOption -> FilePath -> IO [[ViewColor]]
-performTransformation option path = do
-    file <- B.readFile path
-    codeDef <- parserOfFile option path
-    colorDef <- loadConf option
-    errorLines <- loadErrorFile option
-    when (overVerbose option)
-         (putStrLn $ "highlight List : " ++ show (overHighlighted option))
-    let (pixelList, ctxt) = createCodeOverview 
-                        (codeDef colorDef)
-                        colorDef
-                        errorLines
-                        (overHighlighted option)
-                        $ B.lines file
-    when (overVerbose option)
-         (mapM_ (\f -> putStrLn $ "Included : " ++ show f) 
-              $ linkedDocuments ctxt)
-    if overTop option >= 0
-       then return $ addOverMask colorDef (0, overTop option - 1)
-                                          (5000, overHiSize option - 1)
-                                          pixelList
-       else return pixelList
-
-printHelp :: IO ()
-printHelp = putStrLn helpText
-    where helpHeader = "codeOverview usage :\n"
-                    ++ "  codeOverview [OPTIONS] files...\n"
-                    ++ "\n"
-                    ++ "Options :\n"
-          helpText = usageInfo helpHeader commonOption 
 
 createSingleFile :: OverOption -> IO ()
 createSingleFile options = do
@@ -227,17 +186,30 @@ createGraph options = do
 
     when (overVerbose options)
          (putStrLn "creating graph")
+    currentDir <- getCurrentDirectory 
+
+    fileList <- if overRecursiveDiscovery options
+                   then listAllSourceFiles isSourceFile 
+                                           True currentDir 
+                   else return $ overFiles options
+    
+    when (overVerbose options)
+         (mapM_ (putStrLn . ("= found " ++)) fileList)
 
     createIncludeGraph parserForFile (overVerbose options)
                        colorDef "graph.dot"
-                       (overIncludeDirs options) $ overFiles options
+                       (overIncludeDirs options) fileList
 
 main :: IO ()
 main = do
     options <- getArgs >>= loadArgs
+
     when (overHelp options)
          (printHelp >> exitWith ExitSuccess)
-    when (null $ overFiles options)
+
+    when (null (overFiles options) &&
+           not (overGraph options && overRecursiveDiscovery options))
+
          (hPutStrLn stderr "Error : no file input given (try --help for futher information)"
          >> exitWith (ExitFailure 1))
     if overGraph options
