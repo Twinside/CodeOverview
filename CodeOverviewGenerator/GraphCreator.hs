@@ -76,6 +76,7 @@ createIncludeGraph codeMapper verbose colorDef
    outHandle <- liftIO $ openFile graphVizFile WriteMode
    liftIO $ hPutStrLn outHandle "digraph g {"
    liftIO $ hPutStrLn outHandle "    overlap=false"
+   liftIO $ hPutStrLn outHandle "    node [fontname=\"sans-serif\"]"
    liftIO $ hPutStrLn outHandle "    splines=true"
    mapM_ (getFileSubId outHandle . (currDir </>)) fileList
    liftIO $ hPutStrLn outHandle "}"
@@ -107,9 +108,13 @@ createIncludeGraph codeMapper verbose colorDef
                  (liftIO $ savePng24BitAlpha outFileName img)
 
             liftIO . hPutStrLn handle $ 
-                "p" ++ show fileId ++ " [image=\"" 
-                                ++ outFileName ++  "\", shape=\"box\", label=\"" 
-                                ++ takeFileName filePath ++ "\" width=\"" 
+                "p" ++ show fileId ++ " [labelloc=\"t\", tooltip=\"" 
+                                ++ filePath ++ "\", URL=\""
+                                ++ filePath ++ "\", shape=\"none\", "
+                                ++ "label=<<table border=\"0\" cellpadding=\"0\" cellspacing=\"0\" cellborder=\"0\"><tr><td>" 
+                                    ++ takeFileName filePath 
+                                    ++ "</td></tr><tr><td>"
+                                    ++ "<img src=\"" ++ outFileName ++ "\" /></td></tr></table>>, width=\""
                                 ++ show nodeWidth ++ "\" height\""
                                 ++ show nodeHeight ++ "\"]"
 
