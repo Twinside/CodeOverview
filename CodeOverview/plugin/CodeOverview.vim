@@ -87,9 +87,25 @@ fun! s:DefineWindowId() "{{{
     let s:windowId = 0
 endfunction "}}}
 
+fun! s:ConvertColorSchemeToColorConf() "{{{
+    let colorList = split(globpath( &rtp, 'colors/*.vim' ), '\n')
+
+    for colorFilename in colorList
+    	let colorName = substitute(colorFilename, '^.*[\\/]\([^\\\/]\+\)\.vim$', '\1', '')
+    	echo "Dumping " . colorName
+        highlight clear
+    	exe 'color ' . colorName
+        call s:BuildColorConfFromColorScheme(colorName . '.color')
+    endfor
+
+    highlight clear
+    color default
+    call s:BuildColorConfFromColorScheme('default.color')
+endfunction "}}}
+
 " If we want to use the same color as the colorscheme,
 " we must prepare a configuration file with some infos.
-fun! s:BuildColorConfFromColorScheme() "{{{
+fun! s:BuildColorConfFromColorScheme(filename) "{{{
 	let conf =
         \ [ ["comment"     , 'comment'     , 'fg']
         \ , ["normal"      , 'normal'      , 'fg']
@@ -134,11 +150,11 @@ fun! s:BuildColorConfFromColorScheme() "{{{
         endif
     endfor
 
-    call writefile(writtenConf, s:colorFile)
+    call writefile(writtenConf, a:filename)
 endfunction "}}}
 
 fun! s:UpdateColorScheme() "{{{
-    call s:BuildColorConfFromColorScheme()
+    call s:BuildColorConfFromColorScheme(s:colorFile)
     call s:SnapshotFile()
 endfunction "}}}
 
@@ -234,7 +250,7 @@ fun! s:LaunchFriendProcess() "{{{
     call s:PrepareParameters()
 
     if g:code_overview_use_colorscheme
-        call s:BuildColorConfFromColorScheme()
+        call s:BuildColorConfFromColorScheme(s:colorFile)
     endif
 
     " Just to be sure the file is created
@@ -414,6 +430,8 @@ fun! s:RemoveCodeOverviewHook() "{{{
 endfunction "}}}
 
 call s:InitialInit()
+
+command! DumpAllColorSchemes call s:ConvertColorSchemeToColorConf()
 
 if s:friendProcess == '""' || s:overviewProcess == '""'
     echo "Can't find friend executables, aborting CodeOverview load"
