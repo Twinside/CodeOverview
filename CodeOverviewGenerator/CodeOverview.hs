@@ -34,11 +34,13 @@ import CodeOverviewGenerator.Language
 -- | Parse a commentary from a beginning marker till the
 -- end of the line.
 monoLineComment :: CodeDef [ViewColor] -> ColorDef -> Parser [ViewColor]
-monoLineComment cdef colors toMatch
-  | initial `B.isPrefixOf` toMatch = return . Right
-                                   $ Just (concatMap colorer $ B.unpack toMatch, B.empty)
-  | otherwise = return $ Right Nothing
-    where color = commentColor colors
+monoLineComment cdef colors = Parser innerMatch
+    where innerMatch toMatch
+             | initial `B.isPrefixOf` toMatch = 
+                    return $ Result (concatMap colorer $ B.unpack toMatch, B.empty)
+             | otherwise = return NoParse
+            
+          color = commentColor colors
           eColor = emptyColor colors
           (Just initial) = lineComm cdef
 
@@ -50,41 +52,42 @@ monoLineComment cdef colors toMatch
 -- | Parse multiline comments.
 -- Comments can be nested, the parsing is recursive.
 multiLineComment :: CodeDef [ViewColor] -> ColorDef -> Parser [ViewColor]
-multiLineComment cdef colors toMatch
-  | initial `B.isPrefixOf` toMatch = multiParse (replicate initSize color ++) 1
-                                   $ B.drop initSize toMatch
-  | otherwise = return $ Right Nothing
-    where color = commentColor colors
-          eColor = emptyColor colors
-          Just initial = multiLineCommBeg cdef
-          initSize = B.length initial
+multiLineComment cdef colors = Parser $ innerParser 
+  where innerParser toMatch
+          | initial `B.isPrefixOf` toMatch = 
+                multiParse (replicate initSize color ++) 1 $ B.drop initSize toMatch
+          | otherwise = return NoParse
+        
+        color = commentColor colors
+        eColor = emptyColor colors
+        Just initial = multiLineCommBeg cdef
+        initSize = B.length initial
 
-          Just end = multiLineCommEnd cdef
-          endSize = B.length end
+        Just end = multiLineCommEnd cdef
+        endSize = B.length end
 
-          multiParse :: ([ViewColor] -> [ViewColor]) -> Int -> Parser [ViewColor]
-          multiParse acc level (uncons -> Nothing) =
-            return . Left $ NextParse (acc [], multiParse id level)
+        multiParse acc level (uncons -> Nothing) =
+          return $ NextParse (acc [], Parser $ multiParse id level)
 
-          multiParse acc level (uncons -> Just (' ',xs)) =
-              multiParse (acc . (eColor:)) level xs
-          multiParse acc level (uncons -> Just ('\t',xs)) =
-              multiParse (acc . (replicate (tabSpace cdef) eColor ++)) level xs
+        multiParse acc level (uncons -> Just (' ',xs)) =
+            multiParse (acc . (eColor:)) level xs
+        multiParse acc level (uncons -> Just ('\t',xs)) =
+            multiParse (acc . (replicate (tabSpace cdef) eColor ++)) level xs
 
-          multiParse acc level x@(uncons -> Just (_,xs))
-            | initial `B.isPrefixOf` x =
-                multiParse (acc . (replicate initSize color++)) (level + 1)
-                           $ B.drop initSize x
+        multiParse acc level x@(uncons -> Just (_,xs))
+          | initial `B.isPrefixOf` x =
+              multiParse (acc . (replicate initSize color++)) (level + 1)
+                         $ B.drop initSize x
 
-            | end `B.isPrefixOf` x && level - 1 == 0 =
-                return . Right $ Just (acc $ replicate endSize color, B.drop endSize x)
+          | end `B.isPrefixOf` x && level - 1 == 0 =
+              return $ Result (acc $ replicate endSize color, B.drop endSize x)
 
-            | end `B.isPrefixOf` x =
-                multiParse (acc . (replicate endSize color++)) (level - 1)
-                        $ B.drop endSize x
+          | end `B.isPrefixOf` x =
+              multiParse (acc . (replicate endSize color++)) (level - 1)
+                      $ B.drop endSize x
 
-            | otherwise = multiParse (acc . (color:)) level xs
-          multiParse _ _ _ = error "Compilator pleaser... multiParse"
+          | otherwise = multiParse (acc . (color:)) level xs
+        multiParse _ _ _ = error "Compilator pleaser... multiParse"
 
 -- | Given a tokenizer and a string, cut a string in a token
 -- and a rest.
@@ -99,11 +102,11 @@ eatTillSpace f = eater 0
           eater _ _ = error "Compilator pleaser eatTillSpace"
 
 globalParse :: [String] -> CodeDef [ViewColor] -> ColorDef -> Parser [ViewColor]
-globalParse highlightList codeDef colorDef toParse =
+globalParse highlightList codeDef colorDef = Parser $ \toParse ->
     let (word, rest) = eatTillSpace (identParser codeDef) toParse
     in if B.null word
-          then return $ Right Nothing
-          else return . Right $ Just (prepareWord word, rest)
+          then return NoParse
+          else return $ Result (prepareWord word, rest)
             where colorHi = highlightColor colorDef
                   colorMaj = majColor colorDef
                   colorNormal = normalColor colorDef
@@ -118,16 +121,17 @@ globalParse highlightList codeDef colorDef toParse =
                         Just c -> replicate (B.length w) c
 
 charEater :: CodeDef [ViewColor] -> ColorDef -> Parser [ViewColor]
-charEater       _        _  (uncons -> Nothing) = return $ Right Nothing
-charEater codeDef colorDef  (uncons -> Just ('\t',xs)) =
-  return . Right $ Just (replicate size color, xs)
-    where size = tabSpace codeDef
-          color = emptyColor colorDef
-charEater        _ colorDef (uncons -> Just (' ',xs)) =
-    return . Right $ Just ([emptyColor colorDef], xs)
-charEater        _ colorDef (uncons -> Just ( _ ,xs)) =
-    return . Right $ Just ([normalColor colorDef], xs)
-charEater        _ _ _ = error "Compiler pleaser charEater"
+charEater codeDef colorDef = Parser inner
+  where inner (uncons -> Nothing) = return NoParse
+        inner (uncons -> Just ('\t',xs)) =
+            return $ Result (replicate size color, xs)
+                where size = tabSpace codeDef
+                      color = emptyColor colorDef
+        inner (uncons -> Just (' ',xs)) =
+            return $ Result ([emptyColor colorDef], xs)
+        inner (uncons -> Just ( _ ,xs)) =
+            return $ Result ([normalColor colorDef], xs)
+        inner _ = error "Compiler pleaser charEater"
 
 whenAdd :: Bool -> a -> [a] -> [a]
 whenAdd yesno a = if yesno then (a:) else id

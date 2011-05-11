@@ -1,11 +1,11 @@
 {-# LANGUAGE ViewPatterns #-}
+{-# LANGUAGE TypeSynonymInstances #-}
 module CodeOverviewGenerator.Language ( -- * Types
                                         CodeDef( .. )
                                       , ColoringContext(..)
-                                      , NextParse( .. )
                                       , LinkedFile( .. )
-                                      , ParseResult
-                                      , Parser
+                                      , ParseResult( .. )
+                                      , Parser( .. )
 
                                         -- * Default configurations
                                       , defaultColoringContext 
@@ -22,6 +22,7 @@ module CodeOverviewGenerator.Language ( -- * Types
                                       , eatWhiteSpace
                                       ) where
 
+import Control.Applicative
 import Control.Monad.State
 import Data.Char
 import qualified Data.Map as Map
@@ -30,12 +31,10 @@ import CodeOverviewGenerator.Color
 import CodeOverviewGenerator.ByteString(uncons)
 import qualified CodeOverviewGenerator.ByteString as B
 
-newtype NextParse a =
-    NextParse (a, Parser a)
-
-type ParseResult a =
-    Either (NextParse a)
-           (Maybe (a, B.ByteString))
+data ParseResult a =
+      NextParse (a, Parser a)
+    | Result    (a, B.ByteString)
+    | NoParse
 
 data LinkedFile =
       LocalInclude String
@@ -54,7 +53,44 @@ defaultColoringContext = ColoringContext
     , parsingDepth = 0
     }
 
-type Parser a = B.ByteString -> State ColoringContext (ParseResult a)
+newtype Parser a =
+    Parser { runParse :: B.ByteString -> State ColoringContext (ParseResult a) }
+
+instance Functor Parser where
+    fmap f (Parser parser) = Parser $ \bitString -> do
+      rez <- parser bitString
+      case rez of
+        NextParse (a, np) -> return $ NextParse (f a, fmap f np)
+        Result    (a, b) -> return $ Result (f a, b)
+        NoParse -> return NoParse
+
+instance Applicative Parser where
+    pure val = Parser $ \_ -> return $ Result (val, B.empty)
+
+    (<*>) (Parser mfunc) (Parser mval) = Parser $ \b -> do
+        func <- mfunc b
+        case func of
+          NoParse -> return NoParse
+          Result (f, rest) -> do
+            rez <- mval rest
+            case rez of
+              NoParse -> return NoParse
+              Result (val, left) -> return $ Result (f val, left)
+              NextParse (val, np) -> return $ NextParse (f val, f `fmap`np)
+
+          -- No meaningful way to use NextParse as first case I guess
+          NextParse _ -> return NoParse
+
+
+instance Alternative Parser where
+    empty = Parser $ \_ -> return NoParse
+    (<|>) (Parser pa) (Parser pb) = Parser $ \b -> do
+        rez <- pa b
+        case rez of
+          NoParse -> pb b
+          Result a -> return $ Result a
+          NextParse a -> return $ NextParse a
+
 
 -- | Define a language used by the image generator to put
 -- some colors in it.
@@ -111,53 +147,61 @@ identWithPrime c _ = isAlphaNum c || c == '\''
 
 -- | Parse an integer of the form \'[0-9]+\'
 intParser :: ColorDef -> Parser [ViewColor]
-intParser colorDef (uncons -> Just (c, toParse))
-    | isDigit c = return $ intParse (1, toParse)
+intParser colorDef = Parser $ \toParse ->
+    if not (B.null toParse) && isDigit (B.head toParse)
+      then return $ intParse (0, toParse)
+      else return NoParse
         where numColor = numberColor colorDef
+
               intParse (n, uncons -> Just (c', rest))
                 | isDigit c' = intParse (n + 1, rest)
-                | otherwise = Right $ Just (replicate n numColor, rest)
+                | otherwise = Result (replicate n numColor, rest)
               intParse (n, uncons -> Nothing) =
-                Right $ Just (replicate n numColor, B.empty)
+                Result (replicate n numColor, B.empty)
               intParse _ = error "Compiler pleaser - intParser"
-intParser _ _ = return $ Right Nothing
 
 -- | Aim to parse \' \' like structures (char representation) of a given
 -- programming language.
 charParser :: ColorDef -> Parser [ViewColor]
-charParser colorDef (uncons -> Just ('\'', rest)) = return $ parser (1,rest)
-    where color = charColor colorDef
+charParser colorDef = Parser $ innerParser
+    where innerParser (uncons -> Just ('\'', rest)) = return $ parser (1,rest)
+          innerParser _ = return NoParse
+
+          color = charColor colorDef
           parser (n, uncons -> Just ('\\', uncons -> Just ('\\',xs))) =
               parser (n + 2,xs)
           parser (n, uncons -> Just ('\\', uncons -> Just ('\'',xs))) =
               parser (n + 2,xs)
           parser (n, uncons -> Just ('\'', rest')) = 
-                Right (Just (replicate (n + 1) color, rest'))
+                Result (replicate (n + 1) color, rest')
           parser (n, uncons -> Just (_, xs)) = parser (n + 1, xs)
           parser (n, uncons -> Nothing) =
-                Right $ Just (replicate n color, B.empty)
+                Result (replicate n color, B.empty)
           parser (_, _) = error "Compiler pleaser charParser"
-charParser _ _ = return $ Right Nothing
 
 -- | Parse a string, ignoring the \\\"
 stringParser :: Bool -> CodeDef [ViewColor] -> ColorDef -> Parser [ViewColor]
-stringParser allowBreak codeDef colorDef (uncons -> Just ('"',stringSuite)) =
-  stringer (color:) stringSuite
-    where color = stringColor colorDef
-          empty = emptyColor colorDef
+stringParser allowBreak codeDef colorDef = Parser innerParser
+  
+    where innerParser (uncons -> Just ('"',stringSuite)) =
+                stringer (color:) stringSuite
+          innerParser _ = return NoParse
+
+          color = stringColor colorDef
+          emptyC = emptyColor colorDef
           tabSize = tabSpace codeDef
+
           stringer acc (uncons -> Nothing) = if allowBreak
-                                then return . Left $ NextParse (acc [], stringer id)
-                                else return $ Right Nothing
+                                then return $ NextParse (acc [], Parser $ stringer id)
+                                else return NoParse
           stringer acc (uncons -> Just ('\\', uncons -> Just ('"',xs))) =
               stringer (acc . ([color, color]++)) xs
-          stringer acc (uncons -> Just (' ',xs)) = stringer (acc . (empty:)) xs
+          stringer acc (uncons -> Just (' ',xs)) = stringer (acc . (emptyC:)) xs
           stringer acc (uncons -> Just ('\t',xs)) = 
-            stringer (acc . (replicate tabSize empty ++)) xs
-          stringer acc (uncons -> Just ('"',xs)) = return . Right $ Just (acc [color], xs)
+            stringer (acc . (replicate tabSize emptyC ++)) xs
+          stringer acc (uncons -> Just ('"',xs)) = return $ Result (acc [color], xs)
           stringer acc (uncons -> Just (_,xs)) = stringer (acc . (color:)) xs
           stringer _ _ = error "stringParser compiler pleaser"
-stringParser _ _ _ _ = return $ Right Nothing
 
 -- | Parse a[^b]b where a is the first argument and b the second one
 between :: Char -> Char -> B.ByteString -> Maybe B.ByteString
