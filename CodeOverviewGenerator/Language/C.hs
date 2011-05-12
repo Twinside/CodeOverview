@@ -114,6 +114,7 @@ cCodeDef colors = def
            { lineComm = strComment "//"
            , multiLineCommBeg = strComment "/*"
            , multiLineCommEnd = strComment "*/"
+           , recursiveComment = False
            , tabSpace = 4
            , identParser = identWithPrime
            , strParser = Just $ stringParser False def

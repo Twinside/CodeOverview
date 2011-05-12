@@ -26,7 +26,6 @@ import qualified CodeOverviewGenerator.ByteString as B
 
 import CodeOverviewGenerator.Color
 import CodeOverviewGenerator.Language
-
 --------------------------------------------------
 ----            Generation code
 --------------------------------------------------
@@ -58,7 +57,7 @@ multiLineComment cdef colors = Parser $ innerParser
                 multiParse (replicate initSize color ++) (1 :: Int)
                                         $ B.drop initSize toMatch
           | otherwise = return NoParse
-        
+        recurse = recursiveComment cdef
         color = commentColor colors
         eColor = emptyColor colors
         Just initial = multiLineCommBeg cdef
@@ -76,7 +75,7 @@ multiLineComment cdef colors = Parser $ innerParser
             multiParse (acc . (replicate (tabSpace cdef) eColor ++)) level xs
 
         multiParse acc level x@(uncons -> Just (_,xs))
-          | initial `B.isPrefixOf` x =
+          | initial `B.isPrefixOf` x && recurse =
               multiParse (acc . (replicate initSize color++)) (level + 1)
                          $ B.drop initSize x
 
@@ -144,7 +143,8 @@ parserList highlightDef codeDef colorDef =
     . whenAdd (isJust $ lineComm codeDef) (monoLineComment codeDef colorDef)
     . whenAdd (isJust $ strParser codeDef) (fromJust (strParser codeDef) colorDef)
     . whenAdd (multiLineCommBeg codeDef /= Nothing
-              && multiLineCommEnd codeDef /= Nothing) (multiLineComment codeDef colorDef)
+              && multiLineCommEnd codeDef /= Nothing) 
+                (multiLineComment codeDef colorDef)
     $ [ globalParse highlightDef codeDef colorDef
       , charEater codeDef colorDef
       ]

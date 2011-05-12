@@ -103,6 +103,9 @@ data    CodeDef a = CodeDef
       -- | End  marker for multiline comments, like
       -- \'*/\' in C or \'-}\' in Haskell
     , multiLineCommEnd :: Maybe B.ByteString
+
+      -- | If the multi lines comment can be nested.
+    , recursiveComment :: Bool
       -- | Definition for identifier for the current language.
     , identParser :: Char -> Int -> Bool
       -- | Definition for strings in the current language.
@@ -137,6 +140,7 @@ emptyCodeDef = CodeDef
             , strParser = Nothing
             , specialIdentifier = Map.empty
             , specificParser = []
+            , recursiveComment = False
             }
 
 -- | Basic identifier parser parser the [a-zA-Z][a-zA-Z0-9']*

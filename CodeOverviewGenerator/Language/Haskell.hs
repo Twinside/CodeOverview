@@ -31,6 +31,7 @@ haskellCodeDef colors = def
                 { lineComm = strComment "--"
                 , multiLineCommBeg = strComment "{-"
                 , multiLineCommEnd = strComment "-}"
+                , recursiveComment = True
                 , tabSpace = 4
                 , identParser = identWithPrime
                 , strParser = Just $ stringParser False def

@@ -24,6 +24,7 @@ ocamlCodeDef colors = def
                { lineComm = Nothing
                , multiLineCommBeg = strComment "(*"
                , multiLineCommEnd = strComment "*)"
+               , recursiveComment = True
                , tabSpace = 4
                , identParser = basicIdent
                , strParser = Just $ stringParser False def
