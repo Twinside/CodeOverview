@@ -16,12 +16,14 @@ hTypes = ["Int", "Integer", "Char", "Bool", "Float"
          , "String", "Maybe", "Either", "Ratio", "Complex"
          , "Ordering", "IOError", "IOResult", "ExitCode"]
 
-importParser :: ColorDef -> Parser [ViewColor]
-importParser str 
-    | not $ "import" `B.isPrefixOf` str = return $ Right Nothing
-    | otherwise = eatWhiteSpace 4 
-        where checkSpace (uncons -> Just (' ', rest)) =
-              checkSpace (uncons -> Just ('\t', rest)) =
+{-importParser :: ColorDef -> Parser [ViewColor]-}
+{-importParser str -}
+    {-| not $ "import" `B.isPrefixOf` str = return $ Right Nothing-}
+    {-| otherwise = eatWhiteSpace 4 -}
+        {-where checkSpace (uncons -> Just (' ', rest)) =-}
+              {-checkSpace (uncons -> Just ('\t', rest)) =-}
+
+              
                 
 haskellCodeDef :: ColorDef -> CodeDef [ViewColor]
 haskellCodeDef colors = def
@@ -41,6 +43,6 @@ haskellCodeDef colors = def
                     , (hTypes, typeColor)
                     ]
 
-                , specificParser = [ intParser colors, importParser colors]
+                , specificParser = [ intParser colors {-, importParser colors -}]
                 }
 

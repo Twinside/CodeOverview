@@ -46,16 +46,18 @@ at (n, buff) = if B.length buff <= n
 
 -- | '#..... ' -> (beforeCount, ".....", spacecount)
 preprocParser :: Parser (Int, B.ByteString, Int)
-preprocParser (uncons -> Just ('#', toParse)) =
-  return $ preprocParse (1 + preprocCommandStart, toParse)
-    where (preprocCommandStart, _) = eatWhiteSpace 4 toParse
-          preprocParse (at -> (n, Nothing)) = Right $ Just ((n, B.empty, 0), B.empty)
-          preprocParse (at -> (n,  Just (c,rest))) 
-            | isAlpha c = preprocParse (n + 1, rest)
-            | otherwise = Right $ Just ((n, B.take n rest, sp + 1), wholeRest)
-                where (sp, wholeRest) = eatWhiteSpace 4 rest
-          preprocParse _ = error "Compiler pleaser preprocParser"
-preprocParser _ = return $ Right Nothing
+preprocParser = Parser $ innerParser
+  where innerParser (uncons -> Just ('#', toParse)) =
+            let (preprocCommandStart, _) = eatWhiteSpace 4 toParse
+            in return $ preprocParse (1 + preprocCommandStart, toParse)
+        innerParser _ = return NoParse
+
+        preprocParse (at -> (n, Nothing)) = Result ((n, B.empty, 0), B.empty)
+        preprocParse (at -> (n,  Just (c,rest))) 
+          | isAlpha c = preprocParse (n + 1, rest)
+          | otherwise = Result ((n, B.take n rest, sp + 1), wholeRest)
+              where (sp, wholeRest) = eatWhiteSpace 4 rest
+        preprocParse _ = error "Compiler pleaser preprocParser"
 
 parseInclude :: B.ByteString -> Maybe LinkedFile
 parseInclude str = case between '"' '"' str of
@@ -68,7 +70,7 @@ includeParser :: ColorDef -> ((Int, B.ByteString, Int),B.ByteString)
 includeParser colors ((initSize, command, n), rest) = do
   when (includeFile /= Nothing)
        (addIncludeFile $ fromJust includeFile)
-  return . Right $ Just (colorLine, B.empty)
+  return $ Result (colorLine, B.empty)
     where incColor = stringColor colors
           spaceColor = emptyColor colors
           preproColor = preprocColor colors
@@ -94,15 +96,17 @@ displayPreproc colorDef (n, command, spaceCount) = colors
           colors = replicate totalSize $ preprocColor colorDef
 
 preprocHighlighter :: ColorDef -> Parser [ViewColor]
-preprocHighlighter colorDef bt = preprocParser bt >>= resAnalyzer
-    where resAnalyzer (Left (NextParse (payload, _))) =
-            return . Right $ Just (displayPreproc colorDef payload, B.empty)
-          resAnalyzer (Right Nothing) = return $ Right Nothing
-          resAnalyzer (Right (Just payload@(parsedCommand@(_, command, _) , _rest))) =
-            case command `M.lookup` preprocAdvancedList of
-                Just parser -> parser colorDef payload
-                Nothing -> return . Right $ Just
-                    (displayPreproc colorDef parsedCommand, B.empty)
+preprocHighlighter colorDef = Parser $ \bt -> 
+    let (Parser realParser) = preprocParser
+    in realParser bt >>= resAnalyzer
+  where resAnalyzer (NextParse (payload, _)) =
+          return $ Result (displayPreproc colorDef payload, B.empty)
+        resAnalyzer NoParse = return NoParse
+        resAnalyzer (Result payload@(parsedCommand@(_, command, _) , _rest)) =
+          case command `M.lookup` preprocAdvancedList of
+              Just parser -> parser colorDef payload
+              Nothing -> return $ Result
+                  (displayPreproc colorDef parsedCommand, B.empty)
 
 cCodeDef :: ColorDef -> CodeDef [ViewColor]
 cCodeDef colors = def

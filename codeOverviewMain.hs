@@ -189,7 +189,7 @@ createGraph options = do
     currentDir <- getCurrentDirectory 
 
     fileList <- if overRecursiveDiscovery options
-                   then listAllSourceFiles isSourceFile 
+                   then listAllSourceFiles isSourceFile
                                            True currentDir 
                    else return $ overFiles options
     

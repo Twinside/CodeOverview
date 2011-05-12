@@ -41,6 +41,13 @@ addPath path = do
     put $ M.insert path newId visited
     return newId
 
+isFileAccepted :: FilePath -> Bool
+isFileAccepted "." = False
+isFileAccepted ".." = False
+isFileAccepted ".svn" = False
+isFileAccepted ".git" = False
+isFileAccepted _ = True
+
 -- | List all source code files in the directory and
 -- subdirectory if recursive
 listAllSourceFiles :: (FilePath -> Bool) -- ^ Tell if the file is a source file.
@@ -48,12 +55,13 @@ listAllSourceFiles :: (FilePath -> Bool) -- ^ Tell if the file is a source file.
                    -> FilePath         -- ^ Scanning root.
                    -> IO [FilePath]
 listAllSourceFiles isSourceFile recursive path = do
-    elemList <- filter (\p -> p /= "." && p /= "..") <$> getDirectoryContents path
+    dirElems <- getDirectoryContents path
+    let elemList = map (path </>) $ filter isFileAccepted dirElems 
     concat <$> forM elemList (\p -> do
         isDirectory <- doesDirectoryExist p
         case (isDirectory, recursive, isSourceFile p) of
-            (True, True,    _) -> 
-                    listAllSourceFiles isSourceFile recursive p
+            (True, True,    _) ->
+                    listAllSourceFiles isSourceFile recursive $ path </> p
             (_   ,    _, True) -> return [path </> p]
             _                  -> return [])
 

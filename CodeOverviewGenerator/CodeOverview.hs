@@ -55,7 +55,8 @@ multiLineComment :: CodeDef [ViewColor] -> ColorDef -> Parser [ViewColor]
 multiLineComment cdef colors = Parser $ innerParser 
   where innerParser toMatch
           | initial `B.isPrefixOf` toMatch = 
-                multiParse (replicate initSize color ++) 1 $ B.drop initSize toMatch
+                multiParse (replicate initSize color ++) (1 :: Int)
+                                        $ B.drop initSize toMatch
           | otherwise = return NoParse
         
         color = commentColor colors
@@ -246,9 +247,9 @@ createCodeOverview' codeDef colorDef errorLines highlighted file = do
                $ parseRez []
 
     where usedParser = parserList highlighted codeDef colorDef
-          (firstParser : tailParser) = usedParser
+          (Parser firstParser : tailParser) = usedParser
 
-          parse (prevLines, Just parser) line = do
+          parse (prevLines, Just (Parser parser)) line = do
               lineRest <- parser line
               (line', parser') <- lineEval (id, line, lineRest) usedParser
               return  (prevLines . (line':), parser')
@@ -259,18 +260,18 @@ createCodeOverview' codeDef colorDef errorLines highlighted file = do
                                           tailParser
               return (prevLines . (line':), parser')
 
-          lineEval (line,      _, Left (NextParse (vals, parser))) _ =
+          lineEval (line,      _, NextParse (vals, parser)) _ =
               return (line vals, Just parser)
-          lineEval (line,      _, Right (Just (chars, (uncons -> Nothing)))) _ =
+          lineEval (line,      _, Result (chars, (uncons -> Nothing))) _ =
               return (line chars, Nothing)
-          lineEval (line,(uncons -> Nothing), Right Nothing) _ =
+          lineEval (line,(uncons -> Nothing), NoParse) _ =
               return (line [], Nothing)
 
-          lineEval (line, parsed, Right Nothing) (parser: subParser) = do
+          lineEval (line, parsed, NoParse) (Parser parser: subParser) = do
               neoParsed <- parser parsed
               lineEval (line, parsed, neoParsed) subParser
 
-          lineEval (line,      _, Right (Just (chars, rest)))      _ = do
+          lineEval (line,      _, Result (chars, rest))      _ = do
               rez <- firstParser rest 
               let neoLine = line . (chars ++)
               lineEval (neoLine, rest, rez) tailParser
