@@ -89,6 +89,8 @@ preprocAdvancedList :: M.Map B.ByteString
                                       -> Parser [ViewColor])
 preprocAdvancedList = M.fromList
     [ (B.pack "include", includeParser)
+    -- import is more an objective C thingy, but hey, it works fine.
+    , (B.pack "import", includeParser)
     {-, (B.pack "if", semiCommentParser)-}
     ]
 

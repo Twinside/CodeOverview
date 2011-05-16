@@ -1,5 +1,9 @@
 module CodeOverviewGenerator.Language.Haskell ( haskellCodeDef ) where
 
+import Control.Applicative
+import System.FilePath
+
+import qualified CodeOverviewGenerator.ByteString as B
 import CodeOverviewGenerator.Language
 import CodeOverviewGenerator.Color
 
@@ -16,12 +20,32 @@ hTypes = ["Int", "Integer", "Char", "Bool", "Float"
          , "String", "Maybe", "Either", "Ratio", "Complex"
          , "Ordering", "IOError", "IOResult", "ExitCode"]
 
-{-importParser :: ColorDef -> Parser [ViewColor]-}
-{-importParser str -}
-    {-| not $ "import" `B.isPrefixOf` str = return $ Right Nothing-}
-    {-| otherwise = eatWhiteSpace 4 -}
-        {-where checkSpace (uncons -> Just (' ', rest)) =-}
-              {-checkSpace (uncons -> Just ('\t', rest)) =-}
+
+importParser :: ColorDef -> Parser [ViewColor]
+importParser colors = cleanDef <$>
+    token "import" <*> (spaceList <$> eatWhiteSpace 4)
+                   <*> (token "qualified" <|> nullParser)
+                   <*> (spaceList <$> eatWhiteSpace 4)
+                   <*> (notChars " \t" >>= extractInfos)
+      where spaceList n = replicate n spaceColor
+            spaceColor = emptyColor colors
+            impColor = includeColor colors
+
+            extractInfos s = Parser $ \rest -> do
+               let path = foldl1 (</>) . map B.unpack $ B.split '.' s
+               addIncludeFile . LocalInclude $ path <.> "hs"
+               addIncludeFile . LocalInclude $ path <.> "lhs"
+               addIncludeFile . LocalInclude $ path <.> "hs-boot"
+               return $ Result (B.length s, rest)
+
+            cleanDef impLength spaceList1 qualifiedLength
+                     spaceList2 impSize =
+                replicate impLength impColor
+                    ++ spaceList1
+                    ++ replicate qualifiedLength impColor
+                    ++ spaceList2
+                    ++ replicate impSize (normalColor colors)
+                                            
 
               
                 
@@ -44,6 +68,6 @@ haskellCodeDef colors = def
                     , (hTypes, typeColor)
                     ]
 
-                , specificParser = [ intParser colors {-, importParser colors -}]
+                , specificParser = [ intParser colors, importParser colors]
                 }
 

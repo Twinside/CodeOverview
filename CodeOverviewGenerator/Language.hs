@@ -13,6 +13,8 @@ module CodeOverviewGenerator.Language ( -- * Types
                                       , lengthOfLinkeFile 
 
                                         -- * Parsers
+                                      , token
+                                      , nullParser 
                                       , addIncludeFile
                                       , basicIdent
                                       , between
@@ -255,6 +257,22 @@ eatWhiteSpace tabSize = Parser $ eater 0
     where eater n (uncons -> Just (' ',rest)) = eater (n + 1) rest
           eater n (uncons -> Just ('\t',rest)) = eater (n + tabSize) rest
           eater n leftOver = return $ Result (n, leftOver)
+
+token :: String -> Parser Int
+token str = Parser innerParser
+    where packed = B.pack str
+          innerParser b
+            | not $ packed `B.isPrefixOf` b = return NoParse
+            | otherwise = if isFollowedByWhitespace rest
+                 then return $ Result (B.length packed, rest)
+                 else return NoParse
+                where rest = B.drop (B.length packed) b
+                      isFollowedByWhitespace (uncons -> Just (c, _))
+                        | c == ' ' || c == '\t' = True
+                      isFollowedByWhitespace _ = False 
+
+nullParser :: Parser Int
+nullParser = Parser $ \b -> return $ Result (0, b)
 
 {-regionParser :: B.ByteString -> B.ByteString-}
              {--> Parser [ViewColor]-}
