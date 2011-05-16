@@ -10,11 +10,14 @@ module CodeOverviewGenerator.Language ( -- * Types
                                         -- * Default configurations
                                       , defaultColoringContext 
                                       , emptyCodeDef
+                                      , lengthOfLinkeFile 
 
                                         -- * Parsers
                                       , addIncludeFile
                                       , basicIdent
                                       , between
+                                      , charParse
+                                      , notChars
                                       , identWithPrime 
                                       , stringParser 
                                       , charParser 
@@ -46,6 +49,13 @@ data ColoringContext = ColoringContext
     , parsingDepth :: Int
     }
     deriving Show
+
+-- Return the size in number of character of the linked
+-- file.
+lengthOfLinkeFile :: LinkedFile -> Int
+lengthOfLinkeFile (LocalInclude s) = length s
+lengthOfLinkeFile (SystemInclude s) = length s
+
 
 defaultColoringContext :: ColoringContext
 defaultColoringContext = ColoringContext
@@ -80,6 +90,17 @@ instance Applicative Parser where
 
           -- No meaningful way to use NextParse as first case I guess
           NextParse _ -> return NoParse
+
+instance Monad Parser where
+    return = pure
+    (>>=) (Parser parser) f = Parser $ \bitString -> do
+        parseRez <- parser bitString 
+        case parseRez of
+           NoParse -> return NoParse
+           Result (rez, rest) ->
+             let (Parser p) = f rez in p rest
+           NextParse (rez, _) ->
+             let (Parser p) = f rez in p B.empty
 
 
 instance Alternative Parser where
@@ -207,22 +228,33 @@ stringParser allowBreak codeDef colorDef = Parser innerParser
           stringer acc (uncons -> Just (_,xs)) = stringer (acc . (color:)) xs
           stringer _ _ = error "stringParser compiler pleaser"
 
+charParse :: Char -> Parser Char
+charParse a = Parser innerParse
+    where innerParse (uncons -> Just (c,rest))
+              | c == a = return $ Result (a, rest)
+          innerParse _ = return NoParse
+
 -- | Parse a[^b]b where a is the first argument and b the second one
-between :: Char -> Char -> B.ByteString -> Maybe B.ByteString
-between a b (uncons -> Just (c, rest))
-  | c /= a = Nothing
-  | otherwise = Just $ B.takeWhile (/= b) rest
-between _ _ _ = Nothing
+between :: Char -> Char -> Parser a -> Parser a
+between a b parser = (\_ prez _ -> prez) <$> charParse a <*> parser <*> charParse b
+
+notChars :: [Char] -> Parser B.ByteString
+notChars lst = Parser $ fullParser
+    where fullParser bitString = innerParser bitString 0 bitString
+          innerParser bitString n (uncons -> Just (c, rest))
+                | not $ c `elem` lst = innerParser bitString (n+1) rest
+          innerParser bitString n rest 
+                | n > 0 = return $ Result (B.take n bitString, rest)
+                | otherwise = return NoParse
 
 -- | Eat all white space returning it's size and what's left to be
--- parsed.
-eatWhiteSpace :: Int             -- ^ Size of space in number of cell
-             -> B.ByteString   -- ^ String to parse
-             -> (Int, B.ByteString) -- ^ Number of space ate and rest of string
-eatWhiteSpace tabSize = eater 0
+-- parsed. Parse \'[ \\t]*\'
+eatWhiteSpace :: Int            -- ^ Size of space in number of cell
+              -> Parser Int     -- ^ Number of space ate
+eatWhiteSpace tabSize = Parser $ eater 0
     where eater n (uncons -> Just (' ',rest)) = eater (n + 1) rest
           eater n (uncons -> Just ('\t',rest)) = eater (n + tabSize) rest
-          eater n leftOver = (n, leftOver)
+          eater n leftOver = return $ Result (n, leftOver)
 
 {-regionParser :: B.ByteString -> B.ByteString-}
              {--> Parser [ViewColor]-}
