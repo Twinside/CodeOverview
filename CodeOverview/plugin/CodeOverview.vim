@@ -381,7 +381,7 @@ fun! s:SnapshotFile(kind) "{{{
     " Make an non-blocking start
     if has('win32')
         let wakeCommand = 'echo ' . wakeText . ' > "' . s:wakeFile . '"'
-        let localeSwitch = ''
+        let localSwitch = ''
     else
         let wakeCommand = 'echo "' . wakeText . '" > "' . s:wakeFile . '"'
         " Problem arise with mismatch of locale, so set it to a working

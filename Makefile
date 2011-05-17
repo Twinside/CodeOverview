@@ -12,7 +12,7 @@ endif
 endif
 
 build:
-	ghc --make -O2 -Wall -o ${HOMEDIR}/dotfiles/vimfiles/bundle/CodeOverview/plugin/codeoverview${EXEEXT} codeOverviewMain.hs
+	ghc --make -O2 -Wall -o ${HOMEDIR}/dotfiles/vimfiles/bundle/vim-codeoverview/plugin/codeoverview${EXEEXT} codeOverviewMain.hs
 
 run:
 	LC_ALL=en_US.utf8
