@@ -40,6 +40,9 @@ data    ColorDef = ColorDef
     , numberColor      :: ViewColor
     , floatColor       :: ViewColor
     , boolColor       :: ViewColor
+    , functionColor    :: ViewColor
+    , tagColor         :: ViewColor
+    , attribTagColor   :: ViewColor
 
     , errorLineColor :: ViewColor
     , warningLineColor :: ViewColor
@@ -75,6 +78,9 @@ defaultColorDef = ColorDef
     , statementColor   = (  0,   0, 255, 255)
     , preprocColor     = (  0,   0, 255, 255)
     , macroColor       = (  0,   0, 255, 255)
+    , functionColor    = (  0,   0, 128, 255)
+    , tagColor         = (  0,   0, 128, 255)
+    , attribTagColor   = (  0,   0, 128, 255)
     , typedefColor     = (  0,   0,   0, 255)
     , includeColor     = (  0,   0,   0, 255)
     , exceptionColor   = (  0,   0,   0, 255)
@@ -185,6 +191,13 @@ updateColorDef def ("float",val) =
     maybe def (\c -> def { floatColor = c }) $ parseHtmlColor val
 updateColorDef def ("bool",val) =
     maybe def (\c -> def { boolColor = c }) $ parseHtmlColor val
+
+updateColorDef def ("function", val) =
+    maybe def (\c -> def { functionColor = c }) $ parseHtmlColor val
+updateColorDef def ("tag", val) =
+    maybe def (\c -> def { tagColor = c }) $ parseHtmlColor val
+updateColorDef def ("attribTag", val) =
+    maybe def (\c -> def { attribTagColor = c }) $ parseHtmlColor val
 
 updateColorDef def ("errorLine",val) =
     maybe def (\c -> def { errorLineColor = c }) $ parseHtmlColor val

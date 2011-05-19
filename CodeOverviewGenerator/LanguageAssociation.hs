@@ -62,5 +62,6 @@ tagExtensionAssoc =
     [ (".html"  , ("HTML"         , htmlCodeDef))
     , (".htm"   , ("HTML"         , htmlCodeDef))
     , (".xml"   , ("XML"          , htmlCodeDef))
+    , (".mxml"  , ("Actionscript mxml", htmlCodeDef))
     , (".xhtml" , ("xHTML"        , htmlCodeDef))
     ]

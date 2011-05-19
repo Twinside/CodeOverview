@@ -21,6 +21,7 @@ module CodeOverviewGenerator.Language ( -- * Types
                                       , charParse
                                       , notChars
                                       , identWithPrime 
+                                      , identParse 
                                       , stringParser 
                                       , charParser 
                                       , intParser 
@@ -35,6 +36,8 @@ import CodeOverviewGenerator.Color
 
 import CodeOverviewGenerator.ByteString(uncons)
 import qualified CodeOverviewGenerator.ByteString as B
+
+import Debug.Trace
 
 data ParseResult a =
       NextParse (a, Parser a)
@@ -77,7 +80,7 @@ instance Functor Parser where
         NoParse -> return NoParse
 
 instance Applicative Parser where
-    pure val = Parser $ \_ -> return $ Result (val, B.empty)
+    pure val = Parser $ \b -> return $ Result (val, b)
 
     (<*>) (Parser mfunc) (Parser mval) = Parser $ \b -> do
         func <- mfunc b
@@ -212,7 +215,7 @@ stringParser allowBreak codeDef colorDef = Parser innerParser
   
     where innerParser (uncons -> Just ('"',stringSuite)) =
                 stringer (color:) stringSuite
-          innerParser _ = return NoParse
+          innerParser _ = trace "str-" return NoParse
 
           color = stringColor colorDef
           emptyC = emptyColor colorDef
@@ -226,15 +229,17 @@ stringParser allowBreak codeDef colorDef = Parser innerParser
           stringer acc (uncons -> Just (' ',xs)) = stringer (acc . (emptyC:)) xs
           stringer acc (uncons -> Just ('\t',xs)) = 
             stringer (acc . (replicate tabSize emptyC ++)) xs
-          stringer acc (uncons -> Just ('"',xs)) = return $ Result (acc [color], xs)
+          stringer acc (uncons -> Just ('"',xs)) = trace ("str+ " ++ show (B.unpack xs))
+                                                 $ return $ Result (acc [color], xs)
           stringer acc (uncons -> Just (_,xs)) = stringer (acc . (color:)) xs
           stringer _ _ = error "stringParser compiler pleaser"
 
 charParse :: Char -> Parser Char
 charParse a = Parser innerParse
     where innerParse (uncons -> Just (c,rest))
-              | c == a = return $ Result (a, rest)
-          innerParse _ = return NoParse
+              | c == a = trace ("'" ++ [a] ++ "'+") $ return $ Result (a, rest)
+              | otherwise = trace ("'" ++ [a] ++ "'- (" ++ [c] ++ ")" ++ B.unpack rest) $ return NoParse
+          innerParse _ = trace ("'" ++ [a] ++ "'- (Nothing)") $ return NoParse
 
 -- | Parse a[^b]b where a is the first argument and b the second one
 between :: Char -> Char -> Parser a -> Parser a
@@ -256,7 +261,7 @@ eatWhiteSpace :: Int            -- ^ Size of space in number of cell
 eatWhiteSpace tabSize = Parser $ eater 0
     where eater n (uncons -> Just (' ',rest)) = eater (n + 1) rest
           eater n (uncons -> Just ('\t',rest)) = eater (n + tabSize) rest
-          eater n leftOver = return $ Result (n, leftOver)
+          eater n leftOver = trace ("sp " ++ show n ++ "|" ++ show leftOver ++ "|") $ return $ Result (n, leftOver)
 
 token :: String -> Parser Int
 token str = Parser innerParser
@@ -273,6 +278,19 @@ token str = Parser innerParser
 
 nullParser :: Parser Int
 nullParser = Parser $ \b -> return $ Result (0, b)
+
+identParse :: Parser B.ByteString
+identParse = Parser subParser
+  where subParser bitString = innerParser bitString 0 bitString
+
+        innerParser _     0 (uncons -> Nothing) = trace "id-" $ return NoParse
+        innerParser whole _ (uncons -> Nothing) = trace ("id "++ B.unpack whole) $ return $ Result (whole, B.empty)
+        innerParser whole n (uncons -> Just (c,rest)) 
+          | isAlpha c = innerParser whole (n + 1) rest
+          | n > 0 = trace ("id " ++ B.unpack (B.take n whole) ++ "' |" ++ (B.unpack $ B.drop n whole) ++ "|") $ 
+                return $ Result (B.take n whole, B.drop n whole)
+          | otherwise = trace "id-" $ return NoParse
+        innerParser _ _ _ = error "Compiler pleaser identParser"
 
 {-regionParser :: B.ByteString -> B.ByteString-}
              {--> Parser [ViewColor]-}

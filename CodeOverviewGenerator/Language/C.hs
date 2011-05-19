@@ -3,10 +3,8 @@ module CodeOverviewGenerator.Language.C( cCodeDef ) where
 
 import Control.Applicative
 import qualified Data.Map as M
-import Data.Char
 import CodeOverviewGenerator.Language
 import CodeOverviewGenerator.Color
-import CodeOverviewGenerator.ByteString( uncons )
 import qualified CodeOverviewGenerator.ByteString as B
 
 cStatement, cLabel, cConditional, cRepeat, cType, cStructure,
@@ -38,24 +36,12 @@ cStructure = ["struct", "union", "enum", "typedef"]
 
 cStorageClass = ["static", "register", "auto", "volatile", "extern", "const", "inline"]
 
-identParse :: Parser B.ByteString
-identParse = Parser subParser
-  where subParser bitString = innerParser bitString 0 bitString
-
-        innerParser _     0 (uncons -> Nothing) = return NoParse
-        innerParser whole _ (uncons -> Nothing) = return $ Result (whole, B.empty)
-        innerParser whole n (uncons -> Just (c,rest)) 
-          | isAlpha c = innerParser whole (n + 1) rest
-          | otherwise = return $ Result (B.take n whole , rest)
-        innerParser _ _ _ = error "Compiler pleaser preprocParser"
-
 -- | '#..... ' -> (beforeCount, ".....", spacecount)
 preprocParser :: Parser (Int, B.ByteString, Int)
 preprocParser = const (,,) <$> charParse '#'
                            <*> eatWhiteSpace 4 
                            <*> identParse 
                            <*> eatWhiteSpace 4
-
 
 parseInclude :: Parser (Maybe LinkedFile)
 parseInclude =

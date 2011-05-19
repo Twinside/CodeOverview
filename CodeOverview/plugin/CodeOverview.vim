@@ -138,7 +138,9 @@ fun! s:BuildColorConfFromColorScheme(filename) "{{{
         \ , ["errorLine"   , 'Error'       , 'bg#']
         \ , ["warningLine" , 'Todo'        , 'bg#']
         \ , ["infoLine"    , 'IncSearch'   , 'bg#']
-        \
+        \ , ["function"    , 'Function'    , 'fg#']
+        \ , ["tag"         , 'Statement'   , 'fg#']
+        \ , ["attribTag"   , 'PreProc'     , 'fg#']
         \ ]
     
     let writtenConf = []
