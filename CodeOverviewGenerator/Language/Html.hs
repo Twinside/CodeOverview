@@ -4,7 +4,6 @@ import Control.Applicative
 import CodeOverviewGenerator.Language
 import CodeOverviewGenerator.Color
 import qualified CodeOverviewGenerator.ByteString as B
-import Debug.Trace
 
 htmlCodeDef :: ColorDef -> CodeDef [ViewColor]
 htmlCodeDef colors = emptyCodeDef
@@ -21,14 +20,21 @@ tagParser colors = tagTranslater <$> between '<' '>' innerTag
         spaceColor = emptyColor colors
         tagCol = tagColor colors
 
-        innerTag = endTag
-                <|> ((\idt sp lst -> trace (show (sp,lst)) $ replicate (B.length idt) tagCol
-                                    ++ replicate sp spaceColor ++ lst) 
-                        <$> identParse <*> eatWhiteSpace 4 <*> attribList)
+        colorize color byteString =
+            replicate (B.length byteString) color
 
-        endTag =
-            (\_ ident -> bracketCol : replicate (B.length ident) tagCol)
-              <$> charParse '/' <*> identParse
+        innerTag = endTag
+                <|> ((\idt sp lst -> idt ++ replicate sp spaceColor ++ lst) 
+                        <$> tagName <*> eatWhiteSpace 4 <*> attribList)
+
+        endTag = (const $ (bracketCol:)) <$> charParse '/' <*> tagName
+
+        tagName = convertToColors
+                     <$> identParse 
+                     <*> (nameSpaced <|> return [])
+            where nameSpaced = (\_ idt -> bracketCol : colorize tagCol idt)
+                            <$> charParse ':' <*> identParse
+                  convertToColors idt rest = colorize tagCol idt ++ rest
 
         attribList = concat <$> many attrib
 
@@ -45,7 +51,7 @@ tagParser colors = tagTranslater <$> between '<' '>' innerTag
                     <*> eatWhiteSpace 4
                     <*> (charParse '/' <|> return ' ')
 
-        attribVal = trace "v" $
+        attribVal =
               ((\b -> replicate (B.length b) attribColor) <$> identParse)
           <|> stringParser False (htmlCodeDef colors) colors
 
