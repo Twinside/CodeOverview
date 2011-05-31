@@ -27,6 +27,7 @@ data OverOption = OverOption
       , overErrFile :: Maybe FilePath
       , overIncludeDirs :: [FilePath]
       , overGraph :: Bool
+      , overFileFormat :: Maybe String
       , overRecursiveDiscovery :: Bool
       }
 
@@ -46,6 +47,7 @@ defaultOption = OverOption
     , overGraph = False
     , overIncludeDirs = []
     , overRecursiveDiscovery = False
+    , overFileFormat = Nothing
     }
 
 pngIzeExtension :: FilePath -> FilePath
@@ -66,6 +68,8 @@ commonOption =
                                "Viewport size (in lines)."
     , Option []    ["hi"]      (ReqArg (\f o -> o{overHighlighted = f:overHighlighted o}) "Highlight")
                                "Highlight a word"
+    , Option "f" ["format"]    (ReqArg (\f o -> o{ overFileFormat = Just f }) "FileFormat")
+                               "Define a file type for parsing"
     , Option "t" ["top"]     (ReqArg (\f o -> o{overTop=read f}) "TOP")
                                "Viewport beginning line"
     , Option "v" ["verbose"] (NoArg (\o -> o{overVerbose = True}))
@@ -151,13 +155,16 @@ printHelp = putStrLn helpText
           helpText = usageInfo helpHeader commonOption 
 
 codeDefOfExt :: OverOption -> String -> String -> IO (ColorDef -> CodeDef [ViewColor])
-codeDefOfExt option path extension =
-    maybe (return $ const emptyCodeDef) 
-          (\(name, code) -> do
-              when (overVerbose option)
-                   (putStrLn $ "Choosing " ++ name ++ " parser for " ++ path)
-              return code)
-        $ lookup extension extensionAssociation
+codeDefOfExt option@(OverOption { overFileFormat = Nothing }) path extension =
+     maybe (return $ const emptyCodeDef) 
+           (\(name, code) -> do
+               when (overVerbose option)
+                    (putStrLn $ "Choosing " ++ name ++ " parser for " ++ path)
+               return code)
+         $ lookup extension extensionAssociation
+codeDefOfExt option@(OverOption { overFileFormat = Just extension }) path ext =
+     maybe (codeDefOfExt option path ext) return
+         $ lookup extension formatParserAssociation 
 
 parserOfFile :: OverOption -> FilePath -> IO (ColorDef -> CodeDef [ViewColor])
 parserOfFile option path =

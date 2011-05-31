@@ -140,8 +140,8 @@ parserList :: [String] -> CodeDef [ViewColor] -> ColorDef -> [Parser [ViewColor]
 parserList highlightDef codeDef colorDef =
       (specificParser codeDef ++)
     . (charParser colorDef:)
-    . whenAdd (isJust $ lineComm codeDef) (monoLineComment codeDef colorDef)
     . whenAdd (isJust $ strParser codeDef) (fromJust (strParser codeDef) colorDef)
+    . whenAdd (isJust $ lineComm codeDef) (monoLineComment codeDef colorDef)
     . whenAdd (multiLineCommBeg codeDef /= Nothing
               && multiLineCommEnd codeDef /= Nothing) 
                 (multiLineComment codeDef colorDef)

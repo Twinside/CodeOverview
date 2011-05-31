@@ -1,4 +1,10 @@
-module CodeOverviewGenerator.LanguageAssociation where
+module CodeOverviewGenerator.LanguageAssociation(
+              parserForFile
+            , isSourceFile
+            , extensionAssociation
+            , formatParserAssociation
+            , sourceExtensionAssoc
+            , tagExtensionAssoc ) where
 
 import System.FilePath
 
@@ -14,6 +20,7 @@ import CodeOverviewGenerator.Language.Python
 import CodeOverviewGenerator.Language.Shell
 import CodeOverviewGenerator.Language.Ruby
 import CodeOverviewGenerator.Language.Html
+import CodeOverviewGenerator.Language.Vim
 
 
 parserForFile :: FilePath -> ColorDef -> CodeDef [ViewColor]
@@ -33,6 +40,19 @@ isSourceFile path = notNothing $ fileExt `lookup` sourceExtensionAssoc
 
 extensionAssociation :: [(String, (String, ColorDef -> CodeDef [ViewColor]))]
 extensionAssociation = sourceExtensionAssoc ++ tagExtensionAssoc
+
+formatParserAssociation :: [(String, ColorDef -> CodeDef [ViewColor])]
+formatParserAssociation =
+    [ ("haskell", haskellCodeDef)
+    , ("c", cCodeDef)
+    , ("cpp", cppCodeDef)
+    , ("java", javaCodeDef)
+    , ("ocaml", ocamlCodeDef)
+    , ("python", pythonCodeDef)
+    , ("ruby", rubyCodeDef)
+    , ("html", htmlCodeDef)
+    , ("xml", htmlCodeDef)
+    ]
 
 sourceExtensionAssoc :: [(String, (String, ColorDef -> CodeDef [ViewColor]))]
 sourceExtensionAssoc =
@@ -55,6 +75,7 @@ sourceExtensionAssoc =
     , (".sh"    , ("Shell Script" , shellCodeDef))
     , ("Makefile", ("Shell Script", shellCodeDef))
     , (".rb"    , ("Ruby"         , rubyCodeDef))
+    , (".vim"    , ("VimL"         , vimCodeDef))
     ]
 
 tagExtensionAssoc :: [(String, (String, ColorDef -> CodeDef [ViewColor]))]
@@ -65,3 +86,4 @@ tagExtensionAssoc =
     , (".mxml"  , ("Actionscript mxml", htmlCodeDef))
     , (".xhtml" , ("xHTML"        , htmlCodeDef))
     ]
+
