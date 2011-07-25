@@ -11,12 +11,15 @@ module CodeOverviewGenerator.CodeOverview (
 
                    -- * Manipulation function
                    , createCodeOverview
+                   , createHeatMap 
                    , addOverMask
                    , doubleSize
                    ) where
 
+import Control.Applicative
 import Control.Monad.State
 
+import Data.Array
 import Data.Char
 import Data.Maybe( fromJust, isJust )
 import Data.List( mapAccumL, sortBy )
@@ -223,6 +226,45 @@ addOverLines colordef errorList = snd . mapAccumL lineMarker sortedErrors . zip 
         highlightLine ('W':_) line = warningConcat ++ map (\a -> alphaBlend a warningColor) line
         highlightLine _ line = errorConcat ++ map (\a -> alphaBlend a errorColor) line
 
+
+
+createHeatMap :: CodeDef a
+              -> ColorDef
+              -> [(String,Int)]
+              -> [B.ByteString]
+              -> [[ViewColor]]
+createHeatMap codeDef colorDef errorLines fileLines =
+        let (parseRez, _) = evalState (foldM parse (id, 0) fileLines) defaultColoringContext
+        in addOverLines colorDef errorLines 
+               . normalizePixelList colorDef
+               $ parseRez []
+    where langParser = foldl1 (<|>) (heatTokens codeDef)
+                    <|> (return (1, 0) <$> anyChar)
+
+          colorOfDepth i = colorRamp ! realIndex
+            where colorRamp = heatRamp colorDef
+                  (mini, maxi) = bounds colorRamp
+                  realIndex = min (max mini i) maxi
+
+          parse (prevLines, depth) line = do
+              (line', depth') <- parseLine (id, depth) line
+              return (prevLines . (line':), depth')
+
+          parseLine :: ([ViewColor] -> [ViewColor], Int) -> B.ByteString 
+                    -> State ColoringContext ([ViewColor], Int)
+          parseLine (line, depth) (uncons -> Nothing) = return (line [], depth)
+          parseLine (line, depth) toParse = do
+              parseResult <- runParse langParser toParse
+              case parseResult of
+                NoParse -> return (line [], depth)
+                NextParse ((count, increase), _) ->
+                    let newColor = replicate count (colorOfDepth depth)
+                    in return (line newColor, depth + increase)
+
+                Result ((count, increase), rest) ->
+                    let newColor = replicate count (colorOfDepth depth)
+                    in parseLine (line . (newColor ++), depth + increase) rest
+
 -- | Main function to create an overview of a parsed file
 createCodeOverview :: CodeDef [ViewColor] -- ^ Language definition used to put some highlight/color
                    -> ColorDef       -- ^ Colors to be used during the process.
@@ -235,11 +277,11 @@ createCodeOverview codeDef colorDef errorLines highlighted file =
              defaultColoringContext 
 
 createCodeOverview' :: CodeDef [ViewColor] -- ^ Language definition used to put some highlight/color
-                   -> ColorDef       -- ^ Colors to be used during the process.
-                   -> [(String,Int)] -- ^ Error line definition, to put an highlight on some lines.
-                   -> [String]       -- ^ Identifier to be 'highlighted', to highlight a search
-                   -> [B.ByteString]       -- ^  The lines from the file
-                   -> State ColoringContext [[ViewColor]]
+                    -> ColorDef       -- ^ Colors to be used during the process.
+                    -> [(String,Int)] -- ^ Error line definition, to put an highlight on some lines.
+                    -> [String]       -- ^ Identifier to be 'highlighted', to highlight a search
+                    -> [B.ByteString]       -- ^  The lines from the file
+                    -> State ColoringContext [[ViewColor]]
 createCodeOverview' codeDef colorDef errorLines highlighted file = do
         (parseRez, _) <- foldM parse (id, Nothing) file
         return . addOverLines colorDef errorLines 

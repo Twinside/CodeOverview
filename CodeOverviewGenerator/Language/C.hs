@@ -112,5 +112,14 @@ cCodeDef colors = def
                 , (cStorageClass, storageClassColor)
                 ]
            , specificParser = [intParser colors, preprocHighlighter  colors]
+           , heatTokens = 
+                [ heatToken    1 '{'
+                , heatToken (-1) '}'
+                , heatToken    1 '('
+                , heatToken (-1) ')'
+                , heatToken    1 '['
+                , heatToken (-1) ']'
+                ]
            }
+           where heatToken i c = return (1, i) <$> charParse c
 

@@ -69,5 +69,6 @@ haskellCodeDef colors = def
                     ]
 
                 , specificParser = [ intParser colors, importParser colors]
+                , heatTokens = []
                 }
 

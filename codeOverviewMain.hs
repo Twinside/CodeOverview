@@ -29,6 +29,7 @@ data OverOption = OverOption
       , overGraph :: Bool
       , overFileFormat :: Maybe String
       , overRecursiveDiscovery :: Bool
+      , overHeatMap :: Bool
       }
 
 defaultOption :: OverOption
@@ -48,6 +49,7 @@ defaultOption = OverOption
     , overIncludeDirs = []
     , overRecursiveDiscovery = False
     , overFileFormat = Nothing
+    , overHeatMap = False
     }
 
 pngIzeExtension :: FilePath -> FilePath
@@ -76,6 +78,8 @@ commonOption =
                                "Show progression and various information"
     , Option "V" ["version"] (NoArg (\o -> o{overVersion = True}))
                                "Show version number and various information"
+    , Option []  ["heatmap"] (NoArg (\o -> o{overHeatMap = True})) 
+                                "Create a heatmap display of the source file"
     , Option []    ["graph"]   (NoArg (\o -> o{overGraph = True}))
                                "Create a graph from a bunch of code sources."
     , Option "r"   ["recursive-discovery"] (NoArg (\o -> o{ overRecursiveDiscovery = True }))
@@ -134,12 +138,18 @@ performTransformation option path = do
     errorLines <- loadErrorFile option
     when (overVerbose option)
          (putStrLn $ "highlight List : " ++ show (overHighlighted option))
-    let (pixelList, _) = createCodeOverview 
+    let converter =
+            if overHeatMap option
+               then createHeatMap
+                            (codeDef colorDef)
+                            colorDef
+                            errorLines
+               else fst . createCodeOverview 
                             (codeDef colorDef)
                             colorDef
                             errorLines
                             (overHighlighted option)
-                            $ B.lines file
+        pixelList = converter $ B.lines file
     if overTop option >= 0
        then return $ addOverMask colorDef (0, overTop option - 1)
                                           (5000, overHiSize option - 1)

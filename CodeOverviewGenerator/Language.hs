@@ -19,6 +19,7 @@ module CodeOverviewGenerator.Language ( -- * Types
                                       , basicIdent
                                       , between
                                       , charParse
+                                      , anyChar
                                       , notChars
                                       , identWithPrime 
                                       , identParse 
@@ -115,6 +116,8 @@ instance Alternative Parser where
           Result a -> return $ Result a
           NextParse a -> return $ NextParse a
 
+type Count = Int
+type DepthIncrease = Int
 
 -- | Define a language used by the image generator to put
 -- some colors in it.
@@ -140,6 +143,8 @@ data    CodeDef a = CodeDef
     , specialIdentifier :: Map.Map B.ByteString ViewColor
       -- | List of special parsers used for a specific language.
     , specificParser :: [Parser a]
+      -- | Pair of token to generate a "generic" heat map
+    , heatTokens :: [Parser (Count, DepthIncrease)]
     }
 
 -- | Basic identifier parser parser the [a-zA-Z][a-zA-Z0-9]*
@@ -165,6 +170,7 @@ emptyCodeDef = CodeDef
             , specialIdentifier = Map.empty
             , specificParser = []
             , recursiveComment = False
+            , heatTokens = []
             }
 
 -- | Basic identifier parser parser the [a-zA-Z][a-zA-Z0-9']*
@@ -230,6 +236,12 @@ stringParser allowBreak codeDef colorDef = Parser innerParser
           stringer acc (uncons -> Just ('"',xs)) = return $ Result (acc [color], xs)
           stringer acc (uncons -> Just (_,xs)) = stringer (acc . (color:)) xs
           stringer _ _ = error "stringParser compiler pleaser"
+
+anyChar :: Parser Char
+anyChar = Parser innerParse
+ where innerParse (uncons -> Just (c,rest)) = 
+            return $ Result (c, rest)
+       innerParse _ = return NoParse
 
 charParse :: Char -> Parser Char
 charParse a = Parser innerParse

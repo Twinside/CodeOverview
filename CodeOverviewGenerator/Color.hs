@@ -6,6 +6,7 @@ module CodeOverviewGenerator.Color( ColorDef(..)
                                   , strComment
                                   ) where
 
+import Data.Array
 import Data.List( foldl' )
 import qualified Data.Map as Map
 import qualified CodeOverviewGenerator.ByteString as B
@@ -47,8 +48,25 @@ data    ColorDef = ColorDef
     , errorLineColor :: ViewColor
     , warningLineColor :: ViewColor
     , infoLineColor :: ViewColor
+
+    , heatRamp :: Array Int ViewColor
     }
     deriving Show
+
+-- | Small heat ramp from cold color to warm ones.
+smallHeatRamp :: [ViewColor]
+smallHeatRamp =
+    [ (  0,   0, 255, 255)
+    , (  0, 103, 255, 255)
+    , (  0, 207, 255, 255)
+    , (  0, 255, 198, 255)
+    , (  0, 255,  94, 255)
+    , (  9, 255,   0, 255)
+    , (114, 255,   0, 255)
+    , (217, 255,   0, 255)
+    , (255, 188,   0, 255)
+    , (255,  83,   0, 255)
+    , (255,   0,   0, 255) ]
 
 strComment :: String -> Maybe B.ByteString
 strComment = Just . B.pack
@@ -94,6 +112,8 @@ defaultColorDef = ColorDef
     , errorLineColor   = (255,   0,   0, 200)
     , warningLineColor = (  0, 255, 255, 200)
     , infoLineColor    = (  0,   0, 255, 200)
+
+    , heatRamp = listArray (0, length smallHeatRamp - 1) smallHeatRamp 
     }
 
 readHex :: Char -> Int

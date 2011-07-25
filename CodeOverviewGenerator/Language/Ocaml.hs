@@ -34,5 +34,6 @@ ocamlCodeDef colors = def
                     , (ocamlOperator, operatorColor)
                     ]
                , specificParser = []
+               , heatTokens = []
                }
 

@@ -82,5 +82,6 @@ vimCodeDef colors = def
                 {-, (cStorageClass, storageClassColor)-}
                 ]
            , specificParser = [intParser colors]
+           , heatTokens = []
            }
 
