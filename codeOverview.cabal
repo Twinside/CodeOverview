@@ -16,4 +16,6 @@ Executable codeoverview
                  , bytestring >= 0.9
                  , array >= 0.2
                  , filepath >= 1.0
+                 , mtl >= 2.0
+                 , directory >= 1.1
 

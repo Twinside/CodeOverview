@@ -11,7 +11,7 @@ module CodeOverviewGenerator.CodeOverview (
 
                    -- * Manipulation function
                    , createCodeOverview
-                   , createHeatMap 
+                   , createHeatMap
                    , addOverMask
                    , doubleSize
                    ) where
@@ -22,7 +22,9 @@ import Control.Monad.State
 import Data.Array
 import Data.Char
 import Data.Maybe( fromJust, isJust )
-import Data.List( mapAccumL, sortBy )
+import Data.List( mapAccumL, sortBy, transpose,
+                            sort, maximumBy, group )
+
 import qualified Data.Map as Map
 import CodeOverviewGenerator.ByteString(uncons)
 import qualified CodeOverviewGenerator.ByteString as B
@@ -320,4 +322,36 @@ createCodeOverview' codeDef colorDef errorLines highlighted file = do
 
           lineEval                                    _ [] =
               error "Unable to parse, shouldn't happen"
+
+
+splitEvery :: Int -> [a] -> [[a]]
+splitEvery _ [] = []
+splitEvery n lst = rez : splitEvery n rest
+    where (rez, rest) = splitAt (n-1) lst
+
+-- | Reduce an image of an integer factor n, each element
+-- in the resulting matrix will be the most present element
+-- in a submatrix of size n*n.
+-- todo : an array version
+reducePixelMatrix :: (Ord a) => Int -> [[a]] -> [[a]]
+reducePixelMatrix n lineList =
+    [ map (valueOfGroup . kindsInBlock) $ blockList lineGroup
+            | lineGroup <- splitEvery n lineList ]
+    where -- Split each line in a group of chunk, and
+          -- then create a line representing a sub matrix
+          -- within lineList
+          blockList = transpose . map (splitEvery n)
+
+          -- for each submatrix, create a list of selement,
+          -- and prepare it for counting
+          kindsInBlock = group . sort . concat
+
+          -- We want the last value with the most element in it
+          valueOfGroup = fst 
+                       . maximumBy (\(_,a) (_,b) -> compare a b)
+                       . map countSplit 
+
+          countSplit (x:xs) = (x, 1 + length xs)
+
+
 

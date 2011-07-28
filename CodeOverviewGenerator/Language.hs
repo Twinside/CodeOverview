@@ -147,6 +147,38 @@ data    CodeDef a = CodeDef
     , heatTokens :: [Parser (Count, DepthIncrease)]
     }
 
+data CodeEntity =
+      CommentEntity
+    | StringEntity
+    | NormalEntity
+    | HighlightEntity
+    | MajEntity
+    | EmptyEntity
+    | ViewEntity
+    | KeywordEntity
+    | TypeEntity
+
+    | LabelEntity
+    | ConditionalEntity
+    | RepeatEntity
+    | StructureEntity
+    | StatementEntity
+    | PreprocEntity
+    | MacroEntity
+    | TypedefEntity
+    | ExceptionEntity
+    | OperatorEntity
+    | IncludeEntity
+    | StorageClassEntity
+    | CharEntity
+    | NumberEntity
+    | FloatEntity
+    | BoolEntity
+    | FunctionEntity
+    | TagEntity
+    | AttribTagEntity
+    deriving (Eq, Enum)
+
 -- | Basic identifier parser parser the [a-zA-Z][a-zA-Z0-9]*
 -- identifier
 basicIdent :: Char -> Int -> Bool
@@ -180,28 +212,25 @@ identWithPrime c 0 = isAlpha c
 identWithPrime c _ = isAlphaNum c || c == '\''
 
 -- | Parse an integer of the form \'[0-9]+\'
-intParser :: ColorDef -> Parser [ViewColor]
+intParser :: Parser [CodeEntity]
 intParser colorDef = Parser $ \toParse ->
     if not (B.null toParse) && isDigit (B.head toParse)
       then return $ intParse (0, toParse)
       else return NoParse
-        where numColor = numberColor colorDef
-
-              intParse (n, uncons -> Just (c', rest))
+        where intParse (n, uncons -> Just (c', rest))
                 | isDigit c' = intParse (n + 1, rest)
-                | otherwise = Result (replicate n numColor, rest)
+                | otherwise = Result (replicate n NumberEntity, rest)
               intParse (n, uncons -> Nothing) =
-                Result (replicate n numColor, B.empty)
+                Result (replicate n NumberEntity, B.empty)
               intParse _ = error "Compiler pleaser - intParser"
 
 -- | Aim to parse \' \' like structures (char representation) of a given
 -- programming language.
-charParser :: ColorDef -> Parser [ViewColor]
-charParser colorDef = Parser $ innerParser
+charParser :: Parser [CodeEntity]
+charParser = Parser $ innerParser
     where innerParser (uncons -> Just ('\'', rest)) = return $ parser (1,rest)
           innerParser _ = return NoParse
 
-          color = charColor colorDef
           parser (n, uncons -> Just ('\\', uncons -> Just ('\\',xs))) =
               parser (n + 2,xs)
           parser (n, uncons -> Just ('\\', uncons -> Just ('\'',xs))) =
@@ -210,12 +239,12 @@ charParser colorDef = Parser $ innerParser
                 Result (replicate (n + 1) color, rest')
           parser (n, uncons -> Just (_, xs)) = parser (n + 1, xs)
           parser (n, uncons -> Nothing) =
-                Result (replicate n color, B.empty)
+                Result (replicate n CharEntity, B.empty)
           parser (_, _) = error "Compiler pleaser charParser"
 
 -- | Parse a string, ignoring the \\\"
-stringParser :: Bool -> CodeDef [ViewColor] -> ColorDef -> Parser [ViewColor]
-stringParser allowBreak codeDef colorDef = Parser innerParser
+stringParser :: Bool -> CodeDef [CodeEntity] -> Parser [CodeEntity]
+stringParser allowBreak codeDef = Parser innerParser
   
     where innerParser (uncons -> Just ('"',stringSuite)) =
                 stringer (color:) stringSuite
@@ -302,9 +331,3 @@ identParse = Parser subParser
           | otherwise = return NoParse
         innerParser _ _ _ = error "Compiler pleaser identParser"
 
-{-regionParser :: B.ByteString -> B.ByteString-}
-             {--> Parser [ViewColor]-}
-{-regionParser begin end = parseRegion-}
-    {-where parseRegion str-}
-            {-| begin `B.isPrefixOf` str-}
-    
