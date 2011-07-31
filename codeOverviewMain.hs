@@ -1,4 +1,4 @@
-import Control.Monad( when )
+import Control.Monad( when, forM_ )
 import System.Console.GetOpt
 import System.Directory
 import System.Environment
@@ -15,6 +15,7 @@ import Png
 
 data OverOption = OverOption
       { overOut :: String -> String
+      , overTextOut :: String -> String
       , overVersion :: Bool
       , overConf :: String
       , overHelp :: Bool
@@ -30,11 +31,13 @@ data OverOption = OverOption
       , overFileFormat :: Maybe String
       , overRecursiveDiscovery :: Bool
       , overHeatMap :: Bool
+      , overAsciiVersion :: Maybe Int
       }
 
 defaultOption :: OverOption
 defaultOption = OverOption
     { overOut = pngIzeExtension
+    , overTextOut = txtIzeExtension
     , overVersion = False
     , overConf = ""
     , overHelp = False
@@ -50,10 +53,14 @@ defaultOption = OverOption
     , overRecursiveDiscovery = False
     , overFileFormat = Nothing
     , overHeatMap = False
+    , overAsciiVersion = Nothing
     }
 
 pngIzeExtension :: FilePath -> FilePath
 pngIzeExtension = (++ ".png") . fst . splitExtension
+
+txtIzeExtension :: FilePath -> FilePath
+txtIzeExtension = (++ ".txt") . fst . splitExtension
 
 commonOption :: [OptDescr (OverOption -> OverOption)]
 commonOption =
@@ -62,7 +69,8 @@ commonOption =
                                "Produce a png with transparency"
     , Option "h" ["help"]    (NoArg (\o -> o{ overHelp = True}))
                                "Display inline help"
-    , Option "o" ["output"]  (ReqArg (\f o -> o{ overOut = const f}) "FILE")
+    , Option "o" ["output"]  (ReqArg (\f o -> o{ overOut = const f
+                                              , overTextOut = const f }) "FILE")
                                "Output FILE, by default same name with extension replaced."
     , Option "c" ["conf"]    (ReqArg (\f o -> o{ overConf = f}) "FILECONF")
                                "Configuration file, to configure colors."
@@ -87,6 +95,8 @@ commonOption =
     , Option "I" ["include-dir"] (ReqArg (\f o -> o { overIncludeDirs = overIncludeDirs o ++ [f]}) "Directory")
                                    "Add a directory to search for include files."
     , Option []    ["errfile"]  (ReqArg (\f o -> o {overErrFile = Just f}) "FILENAME") "Error lines"
+    , Option []    ["text"]   (ReqArg (\f o -> o {overAsciiVersion = Just $ read f }) "BlockSize") 
+                                    "Output as text file with reduction BlockSize"
     ]
 
 loadArgs :: [String] -> IO OverOption 
@@ -178,6 +188,25 @@ parserOfFile option path =
                                else ext
     in codeDefOfExt option path fileExt
 
+createAscii :: OverOption -> IO ()
+createAscii options = do
+    forM_ (overFiles options) (\file ->
+        do when (overVerbose options)
+                (putStrLn $ "Processing " ++ file)
+           pixels <- do
+                codeDef <- parserOfFile options file
+                fileContent <- B.readFile file
+                let (Just size) = overAsciiVersion options
+                return . createAsciiOverview codeDef size []
+                       $ B.lines fileContent
+
+           if null pixels
+              then putStrLn "Error no pixel processed"
+              else (do let outPath = overTextOut options file
+                       when (overVerbose options)
+                            (putStrLn $ "Writing file at" ++ outPath)
+                       writeFile outPath $ unlines pixels))
+
 createSingleFile :: OverOption -> IO ()
 createSingleFile options = do
     mapM_ (\file ->
@@ -224,7 +253,12 @@ main = do
 
          (hPutStrLn stderr "Error : no file input given (try --help for futher information)"
          >> exitWith (ExitFailure 1))
-    if overGraph options
-       then createGraph options
-       else createSingleFile options
+
+    when (overGraph options)
+         (createGraph options >> exitWith ExitSuccess)
+
+    when (overAsciiVersion options /= Nothing)
+         (createAscii options >> exitWith ExitSuccess)
+
+    createSingleFile options
 

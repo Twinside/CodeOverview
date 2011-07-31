@@ -14,6 +14,7 @@ module CodeOverviewGenerator.CodeOverview (
                    , createHeatMap
                    , addOverMask
                    , doubleSize
+                   , createAsciiOverview
                    ) where
 
 import Control.Applicative
@@ -268,7 +269,7 @@ createCodeOverview codeDef colorDef errorLines highlighted file =
   ( addOverLines colorDef errorLines colorImage, ctxt)
     where (img, ctxt) = runState (createCodeOverview' codeDef highlighted file)
                          defaultColoringContext 
-          colorImage = [ map (colorAssoc !) imgLine | imgLine <- img ]
+          colorImage = [ map (colorAssoc !) imgLine | imgLine <- normalizePixelList EmptyEntity img ]
           colorAssoc = makeEntityColorLookupTable colorDef
 
 
@@ -278,8 +279,7 @@ createCodeOverview' :: CodeDef [CodeEntity] -- ^ Language definition used to put
                     -> State ColoringContext [[CodeEntity]]
 createCodeOverview' codeDef highlighted file = do
         (parseRez, _) <- foldM parse (id, Nothing) file
-        return . normalizePixelList EmptyEntity
-               $ parseRez []
+        return $ parseRez []
 
     where Parser wholeParser = foldl1 (<|>) $ parserList highlighted codeDef
 
@@ -308,6 +308,17 @@ createCodeOverview' codeDef highlighted file = do
               rez <- wholeParser rest 
               let neoLine = line . (chars ++)
               lineEval (neoLine, rest, rez)
+
+createAsciiOverview :: CodeDef [CodeEntity] -- ^ Language definition used to put some highlight/color
+                    -> Int              -- ^ Macro block size.
+                    -> [String]       -- ^ Identifier to be 'highlighted', to highlight a search
+                    -> [B.ByteString]       -- ^  The lines from the file
+                    -> [String]
+createAsciiOverview codeDef factor highlighted file =
+  [ map charify imgLine | imgLine <- reducePixelMatrix factor img ]
+    where img = evalState (createCodeOverview' codeDef highlighted file)
+                         defaultColoringContext 
+          charify e = toEnum $ (fromEnum e) + (fromEnum 'a')
 
 splitEvery :: Int -> [a] -> [[a]]
 splitEvery _ [] = []

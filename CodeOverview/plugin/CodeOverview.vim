@@ -34,10 +34,19 @@ endif
 let s:preparedParameters = 0
 let s:friendProcessStarted = 0
 let s:lastQuickfixKind = ''
+let s:overviewmode = ''
 
 if !exists("g:code_overview_ignore_buffer_list")
 	let g:code_overview_ignore_buffer_list = []
 endif
+
+fun! s:ToggleMode() "{{{
+    if s:overviewmode == ''
+        let s:overviewmode = '--heatmap'
+    else
+    	let s:overviewmode = ''
+    endif
+endfunction "}}}
 
 let s:builtinIgnoreList = [
             \ "__Tag_List__",
@@ -345,7 +354,7 @@ fun! s:SnapshotFile(kind) "{{{
     let research = getreg('/')
 
     " Generate the new image file
-    let commandLine = s:overviewProcess . ' -v -o "' . s:tempFile . '" ' 
+    let commandLine = s:overviewProcess . ' ' . s:overviewmode . ' -v -o "' . s:tempFile . '" ' 
 
     " If we search an identifier
     if research =~ '\\<.*\\>'
@@ -448,6 +457,7 @@ command! CodeOverviewAuto echo 'CodeOverview Friend Process not started!'
 command! SnapshotFile echo 'CodeOverview Friend Process not started!'
 command! ShowCodeOverview call s:LaunchFriendProcess()
 command! HideCodeOverview call s:StopFriendProcess()
+command! ToggleCodeOverview call s:ToggleMode()
 
 if exists("g:code_overview_autostart")
 	call s:LaunchFriendProcess()
