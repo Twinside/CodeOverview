@@ -5,26 +5,24 @@ import CodeOverviewGenerator.Language
 import CodeOverviewGenerator.Color
 import qualified CodeOverviewGenerator.ByteString as B
 
-htmlCodeDef :: ColorDef -> CodeDef [ViewColor]
-htmlCodeDef colors = emptyCodeDef
+htmlCodeDef :: CodeDef [CodeEntity]
+htmlCodeDef = emptyCodeDef
             { multiLineCommBeg = strComment "<!--"
             , multiLineCommEnd = strComment "-->"
-            , specificParser = [tagParser colors]
+            , specificParser = [tagParser]
             }
 
-tagParser :: ColorDef -> Parser [ViewColor]
-tagParser colors = tagTranslater <$> between '<' '>' innerTag
+tagParser ::  Parser [CodeEntity]
+tagParser = tagTranslater <$> between '<' '>' innerTag
   where tagTranslater pixels = bracketCol : pixels ++ [bracketCol]
-        bracketCol = normalColor colors
-        attribColor = attribTagColor colors
-        spaceColor = emptyColor colors
-        tagCol = tagColor colors
+        bracketCol = NormalEntity
+        attribColor = AttribTagEntity
 
         colorize color byteString =
             replicate (B.length byteString) color
 
         innerTag = endTag
-                <|> ((\idt sp lst -> idt ++ replicate sp spaceColor ++ lst) 
+                <|> ((\idt sp lst -> idt ++ replicate sp EmptyEntity ++ lst) 
                         <$> tagName <*> eatWhiteSpace 4 <*> attribList)
 
         endTag = (const $ (bracketCol:)) <$> charParse '/' <*> tagName
@@ -32,17 +30,17 @@ tagParser colors = tagTranslater <$> between '<' '>' innerTag
         tagName = convertToColors
                      <$> identParse 
                      <*> (nameSpaced <|> return [])
-            where nameSpaced = (\_ idt -> bracketCol : colorize tagCol idt)
+            where nameSpaced = (\_ idt -> bracketCol : colorize TagEntity idt)
                             <$> charParse ':' <*> identParse
-                  convertToColors idt rest = colorize tagCol idt ++ rest
+                  convertToColors idt rest = colorize TagEntity idt ++ rest
 
         attribList = concat <$> many attrib
 
         attrib = (\spCount a _ b white c -> 
-                           replicate spCount spaceColor
+                           replicate spCount EmptyEntity
                         ++ replicate (B.length a) attribColor
                         ++ [bracketCol] ++ b 
-                        ++ replicate white spaceColor
+                        ++ replicate white EmptyEntity
                         ++ if c == '/' then [bracketCol] else [])
               <$> eatWhiteSpace 4
                     <*> identParse
@@ -53,5 +51,5 @@ tagParser colors = tagTranslater <$> between '<' '>' innerTag
 
         attribVal =
               ((\b -> replicate (B.length b) attribColor) <$> identParse)
-          <|> stringParser False (htmlCodeDef colors) colors
+          <|> stringParser False htmlCodeDef
 

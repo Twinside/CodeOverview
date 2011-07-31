@@ -140,14 +140,8 @@ performTransformation option path = do
          (putStrLn $ "highlight List : " ++ show (overHighlighted option))
     let converter =
             if overHeatMap option
-               then createHeatMap
-                            (codeDef colorDef)
-                            colorDef
-                            errorLines
-               else fst . createCodeOverview 
-                            (codeDef colorDef)
-                            colorDef
-                            errorLines
+               then createHeatMap codeDef colorDef errorLines
+               else fst . createCodeOverview codeDef colorDef errorLines
                             (overHighlighted option)
         pixelList = converter $ B.lines file
     if overTop option >= 0
@@ -164,19 +158,20 @@ printHelp = putStrLn helpText
                     ++ "Options :\n"
           helpText = usageInfo helpHeader commonOption 
 
-codeDefOfExt :: OverOption -> String -> String -> IO (ColorDef -> CodeDef [ViewColor])
+codeDefOfExt :: OverOption -> String -> String -> IO (CodeDef [CodeEntity])
 codeDefOfExt option@(OverOption { overFileFormat = Nothing }) path extension =
-     maybe (return $ const emptyCodeDef) 
+     maybe (return emptyCodeDef) 
            (\(name, code) -> do
                when (overVerbose option)
                     (putStrLn $ "Choosing " ++ name ++ " parser for " ++ path)
                return code)
          $ lookup extension extensionAssociation
+
 codeDefOfExt option@(OverOption { overFileFormat = Just extension }) path ext =
      maybe (codeDefOfExt option path ext) return
          $ lookup extension formatParserAssociation 
 
-parserOfFile :: OverOption -> FilePath -> IO (ColorDef -> CodeDef [ViewColor])
+parserOfFile :: OverOption -> FilePath -> IO (CodeDef [CodeEntity])
 parserOfFile option path =
     let (fname, ext) = splitExtension path
         fileExt = if ext == "" then snd $ splitFileName fname

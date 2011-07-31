@@ -6,10 +6,9 @@ import CodeOverviewGenerator.Language
 import CodeOverviewGenerator.Language.Shell
 import CodeOverviewGenerator.Color
 
-rubyCodeDef :: ColorDef -> CodeDef [ViewColor]
-rubyCodeDef colors = def
-    where shell = shellCodeDef colors
-          def = shell
+rubyCodeDef :: CodeDef [CodeEntity]
+rubyCodeDef = def
+    where def = shellCodeDef
             { multiLineCommBeg = strComment "=begin"
             , multiLineCommEnd = strComment "=end"
             }

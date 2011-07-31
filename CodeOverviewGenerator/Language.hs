@@ -6,6 +6,7 @@ module CodeOverviewGenerator.Language ( -- * Types
                                       , LinkedFile( .. )
                                       , ParseResult( .. )
                                       , Parser( .. )
+                                      , CodeEntity( .. )
 
                                         -- * Default configurations
                                       , defaultColoringContext 
@@ -32,8 +33,8 @@ module CodeOverviewGenerator.Language ( -- * Types
 import Control.Applicative
 import Control.Monad.State
 import Data.Char
+import Data.Ix
 import qualified Data.Map as Map
-import CodeOverviewGenerator.Color
 
 import CodeOverviewGenerator.ByteString(uncons)
 import qualified CodeOverviewGenerator.ByteString as B
@@ -136,11 +137,11 @@ data    CodeDef a = CodeDef
       -- | Definition for identifier for the current language.
     , identParser :: Char -> Int -> Bool
       -- | Definition for strings in the current language.
-    , strParser :: Maybe (ColorDef -> Parser a)
+    , strParser :: Maybe (Parser a)
       -- | How we must transform tab into space.
     , tabSpace :: Int
       -- | Coloration for keywords/identifier.
-    , specialIdentifier :: Map.Map B.ByteString ViewColor
+    , specialIdentifier :: Map.Map B.ByteString CodeEntity
       -- | List of special parsers used for a specific language.
     , specificParser :: [Parser a]
       -- | Pair of token to generate a "generic" heat map
@@ -177,7 +178,16 @@ data CodeEntity =
     | FunctionEntity
     | TagEntity
     | AttribTagEntity
-    deriving (Eq, Enum)
+
+    | ErrorEntity
+    | WarningEntity
+    | InfoEntity
+    deriving (Eq, Ord, Enum)
+
+instance Ix CodeEntity where
+    range (a, b) = map toEnum $ range (fromEnum a, fromEnum b)
+    index (a, b) n = index (fromEnum a, fromEnum b) (fromEnum n)
+    inRange (a, b) n = inRange (fromEnum a, fromEnum b) (fromEnum n)
 
 -- | Basic identifier parser parser the [a-zA-Z][a-zA-Z0-9]*
 -- identifier
@@ -213,7 +223,7 @@ identWithPrime c _ = isAlphaNum c || c == '\''
 
 -- | Parse an integer of the form \'[0-9]+\'
 intParser :: Parser [CodeEntity]
-intParser colorDef = Parser $ \toParse ->
+intParser = Parser $ \toParse ->
     if not (B.null toParse) && isDigit (B.head toParse)
       then return $ intParse (0, toParse)
       else return NoParse
@@ -236,7 +246,7 @@ charParser = Parser $ innerParser
           parser (n, uncons -> Just ('\\', uncons -> Just ('\'',xs))) =
               parser (n + 2,xs)
           parser (n, uncons -> Just ('\'', rest')) = 
-                Result (replicate (n + 1) color, rest')
+                Result (replicate (n + 1) CharEntity, rest')
           parser (n, uncons -> Just (_, xs)) = parser (n + 1, xs)
           parser (n, uncons -> Nothing) =
                 Result (replicate n CharEntity, B.empty)
@@ -247,23 +257,21 @@ stringParser :: Bool -> CodeDef [CodeEntity] -> Parser [CodeEntity]
 stringParser allowBreak codeDef = Parser innerParser
   
     where innerParser (uncons -> Just ('"',stringSuite)) =
-                stringer (color:) stringSuite
+                stringer (StringEntity:) stringSuite
           innerParser _ = return NoParse
 
-          color = stringColor colorDef
-          emptyC = emptyColor colorDef
           tabSize = tabSpace codeDef
 
           stringer acc (uncons -> Nothing) = if allowBreak
                                 then return $ NextParse (acc [], Parser $ stringer id)
                                 else return NoParse
           stringer acc (uncons -> Just ('\\', uncons -> Just ('"',xs))) =
-              stringer (acc . ([color, color]++)) xs
-          stringer acc (uncons -> Just (' ',xs)) = stringer (acc . (emptyC:)) xs
+              stringer (acc . ([StringEntity, StringEntity]++)) xs
+          stringer acc (uncons -> Just (' ',xs)) = stringer (acc . (EmptyEntity:)) xs
           stringer acc (uncons -> Just ('\t',xs)) = 
-            stringer (acc . (replicate tabSize emptyC ++)) xs
-          stringer acc (uncons -> Just ('"',xs)) = return $ Result (acc [color], xs)
-          stringer acc (uncons -> Just (_,xs)) = stringer (acc . (color:)) xs
+            stringer (acc . (replicate tabSize EmptyEntity ++)) xs
+          stringer acc (uncons -> Just ('"',xs)) = return $ Result (acc [StringEntity], xs)
+          stringer acc (uncons -> Just (_,xs)) = stringer (acc . (StringEntity:)) xs
           stringer _ _ = error "stringParser compiler pleaser"
 
 anyChar :: Parser Char

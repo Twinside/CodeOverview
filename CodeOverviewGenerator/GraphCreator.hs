@@ -69,7 +69,7 @@ listAllSourceFiles isSourceFile recursive path = do
 -- Follow includes files and include them in the graph.
 -- The graph is created in graphviz format to be used
 -- with the tools \'dot\' or \'neato\'.
-createIncludeGraph :: (FilePath -> ColorDef -> CodeDef [ViewColor]) -- ^ Map a file to a parser.
+createIncludeGraph :: (FilePath -> CodeDef [CodeEntity]) -- ^ Map a file to a parser.
                    -> Bool       -- ^ If display verbose information
                    -> ColorDef   -- ^ Color definition used to create code thumbnail.
                    -> FilePath   -- ^ Path for the graph writing.
@@ -101,7 +101,7 @@ createIncludeGraph codeMapper verbose colorDef
             when verbose (liftIO . putStrLn $ "> Processing file : " ++ filePath)
             fileId <- addPath filePath
             file <- liftIO $ B.readFile filePath
-            let parser = codeMapper filePath colorDef
+            let parser = codeMapper filePath
                 fileLines = B.lines file
                 lineCount = length fileLines
                 (img, context) = createCodeOverview parser

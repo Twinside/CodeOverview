@@ -17,18 +17,18 @@ pythonOperator	  = ["and", "in", "is", "not", "or"]
 pythonException	  = ["except", "finally", "raise", "try"]
 pythonInclude	  = ["from", "import"]
 
-pythonCodeDef :: ColorDef -> CodeDef [ViewColor]
-pythonCodeDef colors = def
-    where def = (shellCodeDef colors)
+pythonCodeDef :: CodeDef [CodeEntity]
+pythonCodeDef = def
+    where def = shellCodeDef
            { identParser = identWithPrime
            , strParser = Just $ stringParser False def
-           , specialIdentifier = prepareKeywords colors
-                [ (pythonStatement, statementColor)
-                , (pythonConditional, conditionalColor)
-                , (pythonRepeat, repeatColor)
-                , (pythonOperator, operatorColor)
-                , (pythonException, exceptionColor)
-                , (pythonInclude, includeColor)
+           , specialIdentifier = prepareKeywords
+                [ (pythonStatement, StatementEntity)
+                , (pythonConditional, ConditionalEntity)
+                , (pythonRepeat, RepeatEntity)
+                , (pythonOperator, OperatorEntity)
+                , (pythonException, ExceptionEntity)
+                , (pythonInclude, IncludeEntity)
                 ]
            }
 

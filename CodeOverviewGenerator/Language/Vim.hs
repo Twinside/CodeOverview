@@ -62,8 +62,8 @@ vimBuiltin = [
  "islocked", "keys", "libcallnr", "lispindent", "log10",
  "mapcheck", "matcharg", "matchlist"]
 
-vimCodeDef :: ColorDef -> CodeDef [ViewColor]
-vimCodeDef colors = def
+vimCodeDef :: CodeDef [CodeEntity]
+vimCodeDef = def
     where def = CodeDef
            { lineComm = strComment "\""
            , multiLineCommBeg = Nothing
@@ -72,16 +72,16 @@ vimCodeDef colors = def
            , tabSpace = 4
            , identParser = identWithPrime
            , strParser = Just $ stringParser False def
-           , specialIdentifier = prepareKeywords colors
+           , specialIdentifier = prepareKeywords
  {-, (cStatement, statementColor)-}
-                [ (vimRepeat, repeatColor)
-                , (vimBuiltin, functionColor)
-                , (vimConditional, conditionalColor)
-                , (vimStatement, statementColor)
+                [ (vimRepeat, RepeatEntity)
+                , (vimBuiltin, FunctionEntity)
+                , (vimConditional, ConditionalEntity)
+                , (vimStatement, StatementEntity)
                 {-, (cStructure, structureColor)-}
                 {-, (cStorageClass, storageClassColor)-}
                 ]
-           , specificParser = [intParser colors]
+           , specificParser = [intParser]
            , heatTokens = []
            }
 

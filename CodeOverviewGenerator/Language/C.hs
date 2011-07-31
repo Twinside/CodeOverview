@@ -48,14 +48,10 @@ parseInclude =
         ((Just . LocalInclude . B.unpack) <$> between '"' '"' (notChars "\"") )
     <|> ((Just . SystemInclude . B.unpack) <$> between '<' '>' (notChars ">"))
 
-includeParser :: ColorDef -> (Int, B.ByteString, Int) -> Parser [ViewColor]
-includeParser colors (initSize, command, n) = do
+includeParser :: (Int, B.ByteString, Int) -> Parser [CodeEntity]
+includeParser (initSize, command, n) = do
   parseInclude >>= wrap parseResultAnalyze
-    where incColor = stringColor colors
-          spaceColor = emptyColor colors
-          preproColor = preprocColor colors
-
-          wrap f a = Parser $ \bitString -> do
+    where wrap f a = Parser $ \bitString -> do
               v <- f a
               return $ Result (v, bitString)
 
@@ -65,14 +61,13 @@ includeParser colors (initSize, command, n) = do
               return . colorLine $ lengthOfLinkeFile f
 
           colorLine incSize =
-              replicate (initSize + B.length command + 1) preproColor
-            ++ replicate n spaceColor
-            ++ replicate incSize incColor
+              replicate (initSize + B.length command + 1) PreprocEntity
+            ++ replicate n EmptyEntity
+            ++ replicate incSize StringEntity
 
 
 preprocAdvancedList :: M.Map B.ByteString
-                            (ColorDef -> (Int, B.ByteString, Int) 
-                                      -> Parser [ViewColor])
+                            ((Int, B.ByteString, Int) -> Parser [CodeEntity])
 preprocAdvancedList = M.fromList
     [ (B.pack "include", includeParser)
     -- import is more an objective C thingy, but hey, it works fine.
@@ -80,20 +75,19 @@ preprocAdvancedList = M.fromList
     {-, (B.pack "if", semiCommentParser)-}
     ]
 
-displayPreproc :: ColorDef -> (Int, B.ByteString, Int) -> [ViewColor]
-displayPreproc colorDef (n, command, spaceCount) = colors
+displayPreproc :: (Int, B.ByteString, Int) -> [CodeEntity]
+displayPreproc (n, command, spaceCount) = replicate totalSize PreprocEntity
     where totalSize = n + spaceCount + B.length command
-          colors = replicate totalSize $ preprocColor colorDef
 
-preprocHighlighter :: ColorDef -> Parser [ViewColor]
-preprocHighlighter colorDef = preprocParser >>= resAnalyzer
+preprocHighlighter :: Parser [CodeEntity]
+preprocHighlighter = preprocParser >>= resAnalyzer
   where resAnalyzer payload@(_, command, _) =
           case command `M.lookup` preprocAdvancedList of
-              Nothing -> return $ displayPreproc colorDef payload
-              Just parser -> parser colorDef payload
+              Nothing -> return $ displayPreproc payload
+              Just parser -> parser payload
 
-cCodeDef :: ColorDef -> CodeDef [ViewColor]
-cCodeDef colors = def
+cCodeDef :: CodeDef [CodeEntity]
+cCodeDef = def
     where def = CodeDef
            { lineComm = strComment "//"
            , multiLineCommBeg = strComment "/*"
@@ -102,16 +96,16 @@ cCodeDef colors = def
            , tabSpace = 4
            , identParser = identWithPrime
            , strParser = Just $ stringParser False def
-           , specialIdentifier = prepareKeywords colors
-                [ (cLabel, labelColor)
-                , (cStatement, statementColor)
-                , (cRepeat, repeatColor)
-                , (cType, typeColor)
-                , (cConditional, conditionalColor)
-                , (cStructure, structureColor)
-                , (cStorageClass, storageClassColor)
+           , specialIdentifier = prepareKeywords
+                [ (cLabel, LabelEntity)
+                , (cStatement, StatementEntity)
+                , (cRepeat, RepeatEntity)
+                , (cType, TypeEntity)
+                , (cConditional, ConditionalEntity)
+                , (cStructure, StructureEntity)
+                , (cStorageClass, StorageClassEntity)
                 ]
-           , specificParser = [intParser colors, preprocHighlighter  colors]
+           , specificParser = [intParser, preprocHighlighter]
            , heatTokens = 
                 [ heatToken    1 '{'
                 , heatToken (-1) '}'

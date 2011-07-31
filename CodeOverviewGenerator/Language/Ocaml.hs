@@ -18,8 +18,8 @@ ocamlTypes =
 
 ocamlOperator = ["asr", "lor", "lsl", "lsr", "lxor", "mod", "not"]
 
-ocamlCodeDef :: ColorDef -> CodeDef [ViewColor]
-ocamlCodeDef colors = def
+ocamlCodeDef :: CodeDef [CodeEntity]
+ocamlCodeDef = def
     where def = CodeDef
                { lineComm = Nothing
                , multiLineCommBeg = strComment "(*"
@@ -28,10 +28,10 @@ ocamlCodeDef colors = def
                , tabSpace = 4
                , identParser = basicIdent
                , strParser = Just $ stringParser False def
-               , specialIdentifier = prepareKeywords colors
-                    [ (ocamlKeyword, keywordColor)
-                    , (ocamlTypes, typeColor)
-                    , (ocamlOperator, operatorColor)
+               , specialIdentifier = prepareKeywords
+                    [ (ocamlKeyword, KeywordEntity)
+                    , (ocamlTypes, TypeEntity)
+                    , (ocamlOperator, OperatorEntity)
                     ]
                , specificParser = []
                , heatTokens = []

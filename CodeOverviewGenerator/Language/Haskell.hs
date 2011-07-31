@@ -21,15 +21,13 @@ hTypes = ["Int", "Integer", "Char", "Bool", "Float"
          , "Ordering", "IOError", "IOResult", "ExitCode"]
 
 
-importParser :: ColorDef -> Parser [ViewColor]
-importParser colors = cleanDef <$>
+importParser :: Parser [CodeEntity]
+importParser = cleanDef <$>
     token "import" <*> (spaceList <$> eatWhiteSpace 4)
                    <*> (token "qualified" <|> nullParser)
                    <*> (spaceList <$> eatWhiteSpace 4)
                    <*> (notChars " \t" >>= extractInfos)
-      where spaceList n = replicate n spaceColor
-            spaceColor = emptyColor colors
-            impColor = includeColor colors
+      where spaceList n = replicate n EmptyEntity
 
             extractInfos s = Parser $ \rest -> do
                let path = foldl1 (</>) . map B.unpack $ B.split '.' s
@@ -40,17 +38,17 @@ importParser colors = cleanDef <$>
 
             cleanDef impLength spaceList1 qualifiedLength
                      spaceList2 impSize =
-                replicate impLength impColor
+                replicate impLength IncludeEntity
                     ++ spaceList1
-                    ++ replicate qualifiedLength impColor
+                    ++ replicate qualifiedLength IncludeEntity
                     ++ spaceList2
-                    ++ replicate impSize (normalColor colors)
+                    ++ replicate impSize NormalEntity
                                             
 
               
                 
-haskellCodeDef :: ColorDef -> CodeDef [ViewColor]
-haskellCodeDef colors = def
+haskellCodeDef :: CodeDef [CodeEntity]
+haskellCodeDef = def
     where def = CodeDef
                 { lineComm = strComment "--"
                 , multiLineCommBeg = strComment "{-"
@@ -59,16 +57,16 @@ haskellCodeDef colors = def
                 , tabSpace = 4
                 , identParser = identWithPrime
                 , strParser = Just $ stringParser False def
-                , specialIdentifier = prepareKeywords colors
-                    [ (hModule ++ hStructure, structureColor)
-                    , (hImport, includeColor)
-                    , (hTypedef, typedefColor)
-                    , (hStatement, statementColor)
-                    , (hConditional, conditionalColor)
-                    , (hTypes, typeColor)
+                , specialIdentifier = prepareKeywords
+                    [ (hModule ++ hStructure, StringEntity)
+                    , (hImport, IncludeEntity)
+                    , (hTypedef, TypedefEntity)
+                    , (hStatement, StatementEntity)
+                    , (hConditional, ConditionalEntity)
+                    , (hTypes, TypeEntity)
                     ]
 
-                , specificParser = [ intParser colors, importParser colors]
+                , specificParser = [ intParser, importParser]
                 , heatTokens = []
                 }
 

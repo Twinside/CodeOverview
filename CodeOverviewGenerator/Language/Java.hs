@@ -21,22 +21,19 @@ javaStructure = ["class", "enum", "extends", "implements", "interface"]
 
 -- storageClass
 {-static synchronized transient volatile final strictfp serializable-}
-javaCodeDef :: ColorDef -> CodeDef [ViewColor]
-javaCodeDef colors = def
-    where cdef = (cCodeDef colors)
-          def = cdef {
-            specialIdentifier = prepareKeywords colors
-                [(javaStatement, statementColor)
-                ,(javaAccess, statementColor)
-                ,(javaType, typeColor)
-                ,(javaExceptions, exceptionColor)
-                ,(javaStructure, structureColor)
-                ,(javaTypedef, typedefColor)
-                ,(javaRepeat, repeatColor)
-                ,(javaConditional, conditionalColor)
-                ,(javaBranch, conditionalColor)
-                ,(javaBoolean, boolColor)
+javaCodeDef ::  CodeDef [CodeEntity]
+javaCodeDef = cCodeDef {
+            specialIdentifier = prepareKeywords
+                [(javaStatement, StatementEntity)
+                ,(javaAccess, StatementEntity)
+                ,(javaType, TypeEntity)
+                ,(javaExceptions, ExceptionEntity)
+                ,(javaStructure, StructureEntity)
+                ,(javaTypedef, TypedefEntity)
+                ,(javaRepeat, RepeatEntity)
+                ,(javaConditional, ConditionalEntity)
+                ,(javaBranch, ConditionalEntity)
+                ,(javaBoolean, BoolEntity)
                 ]
-
             }
 

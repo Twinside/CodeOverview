@@ -17,20 +17,18 @@ cppOperator = ["operator", "typeid", "and", "bitor", "or", "xor", "compl"
 {-cppBoolean = ["true", "false"]-}
 cppStructure = ["class", "typename", "template", "namespace"]
 
-cppCodeDef :: ColorDef -> CodeDef [ViewColor]
-cppCodeDef colors = def
-    where cdef = (cCodeDef colors)
-
-          cppIdents = prepareKeywords colors
-            [(cppStatement, statementColor)
-            ,(cppAccess, statementColor)
-            ,(cppType, typeColor)
-            ,(cppExceptions, exceptionColor)
-            ,(cppStructure, structureColor)
-            ,(cppOperator, operatorColor)
+cppCodeDef :: CodeDef [CodeEntity]
+cppCodeDef = def
+    where cppIdents = prepareKeywords
+            [(cppStatement, StatementEntity)
+            ,(cppAccess, StatementEntity)
+            ,(cppType, TypeEntity)
+            ,(cppExceptions, ExceptionEntity)
+            ,(cppStructure, StructureEntity)
+            ,(cppOperator, OperatorEntity)
             ]
 
-          def = cdef {
-            specialIdentifier = cppIdents `Map.union` specialIdentifier cdef 
+          def = cCodeDef {
+            specialIdentifier = cppIdents `Map.union` specialIdentifier cCodeDef
             }
 

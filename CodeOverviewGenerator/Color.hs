@@ -4,10 +4,12 @@ module CodeOverviewGenerator.Color( ColorDef(..)
                                   , parseColorDef
                                   , prepareKeywords
                                   , strComment
+                                  , makeEntityColorLookupTable
                                   ) where
 
 import Data.Array
 import Data.List( foldl' )
+import CodeOverviewGenerator.Language
 import qualified Data.Map as Map
 import qualified CodeOverviewGenerator.ByteString as B
 
@@ -71,11 +73,10 @@ smallHeatRamp =
 strComment :: String -> Maybe B.ByteString
 strComment = Just . B.pack
 
-prepareKeywords :: ColorDef -> [([String], ColorDef -> ViewColor)]
-                -> Map.Map B.ByteString ViewColor
-prepareKeywords colors lst = Map.fromList
-    [(B.pack str, colorAccess colors) | (strList, colorAccess) <- lst
-                                      , str <- strList ]
+prepareKeywords :: [([String], CodeEntity)] -> Map.Map B.ByteString CodeEntity
+prepareKeywords lst = Map.fromList
+    [(B.pack str, entity) | (strList, entity) <- lst
+                          , str <- strList ]
 
 defaultColorDef :: ColorDef
 defaultColorDef = ColorDef
@@ -115,6 +116,42 @@ defaultColorDef = ColorDef
 
     , heatRamp = listArray (0, length smallHeatRamp - 1) smallHeatRamp 
     }
+
+makeEntityColorLookupTable :: ColorDef -> Array CodeEntity ViewColor
+makeEntityColorLookupTable def = array (toEnum 0, last [toEnum 0 ..]) $
+    [ (CommentEntity, commentColor def)
+    , (StringEntity, stringColor def)
+    , (NormalEntity, normalColor def)
+    , (HighlightEntity, highlightColor def)
+    , (MajEntity, majColor def)
+    , (EmptyEntity, emptyColor def)
+    , (ViewEntity, viewColor def)
+    , (KeywordEntity, keywordColor def)
+    , (TypeEntity, typeColor def)
+    , (LabelEntity, labelColor def)
+    , (ConditionalEntity, conditionalColor def)
+    , (RepeatEntity, repeatColor def)
+    , (StructureEntity, structureColor def)
+    , (StatementEntity, statementColor def)
+    , (PreprocEntity, preprocColor def)
+    , (MacroEntity, macroColor def)
+    , (TypedefEntity, typedefColor def)
+    , (ExceptionEntity, exceptionColor def)
+    , (OperatorEntity, operatorColor def)
+    , (IncludeEntity, includeColor def)
+    , (StorageClassEntity, storageClassColor def)
+    , (CharEntity, charColor def)
+    , (NumberEntity, numberColor def)
+    , (FloatEntity, floatColor def)
+    , (BoolEntity, boolColor def)
+    , (FunctionEntity, functionColor def)
+    , (TagEntity, tagColor def)
+    , (AttribTagEntity, attribTagColor def)
+    , (ErrorEntity, errorLineColor def)
+    , (WarningEntity, warningLineColor def)
+    , (InfoEntity, infoLineColor def)
+    ]
+
 
 readHex :: Char -> Int
 readHex c | 'a' <= c && c <= 'f' = fromEnum c - fromEnum 'a' + 10

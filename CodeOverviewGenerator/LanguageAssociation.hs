@@ -23,8 +23,8 @@ import CodeOverviewGenerator.Language.Html
 import CodeOverviewGenerator.Language.Vim
 
 
-parserForFile :: FilePath -> ColorDef -> CodeDef [ViewColor]
-parserForFile path = maybe (const emptyCodeDef) snd
+parserForFile :: FilePath -> CodeDef [CodeEntity]
+parserForFile path = maybe emptyCodeDef snd
                    $ fileExt `lookup` extensionAssociation
     where (fname, ext) = splitExtension path
           fileExt = if ext == "" then snd $ splitFileName fname
@@ -38,10 +38,10 @@ isSourceFile path = notNothing $ fileExt `lookup` sourceExtensionAssoc
           notNothing Nothing = False
           notNothing _ = True
 
-extensionAssociation :: [(String, (String, ColorDef -> CodeDef [ViewColor]))]
+extensionAssociation :: [(String, (String, CodeDef [CodeEntity]))]
 extensionAssociation = sourceExtensionAssoc ++ tagExtensionAssoc
 
-formatParserAssociation :: [(String, ColorDef -> CodeDef [ViewColor])]
+formatParserAssociation :: [(String, CodeDef [CodeEntity])]
 formatParserAssociation =
     [ ("haskell", haskellCodeDef)
     , ("c", cCodeDef)
@@ -54,7 +54,7 @@ formatParserAssociation =
     , ("xml", htmlCodeDef)
     ]
 
-sourceExtensionAssoc :: [(String, (String, ColorDef -> CodeDef [ViewColor]))]
+sourceExtensionAssoc :: [(String, (String, CodeDef [CodeEntity]))]
 sourceExtensionAssoc =
     [ (".hs"    , ("haskell"      , haskellCodeDef))
     , (".c"     , ("C"            , cCodeDef))
@@ -83,7 +83,7 @@ sourceExtensionAssoc =
     , (".vim"    , ("VimL"         , vimCodeDef))
     ]
 
-tagExtensionAssoc :: [(String, (String, ColorDef -> CodeDef [ViewColor]))]
+tagExtensionAssoc :: [(String, (String, CodeDef [CodeEntity]))]
 tagExtensionAssoc =
     [ (".html"  , ("HTML"         , htmlCodeDef))
     , (".htm"   , ("HTML"         , htmlCodeDef))
