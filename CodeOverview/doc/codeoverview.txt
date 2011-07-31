@@ -14,6 +14,7 @@
     - |:CodeOverviewNoAuto|
     - |:CodeOverviewAuto|
     - |:SnapshotFile|
+    - |:ToggleCodeOverview|
 
 4. Configuration                        |CodeOverViewConfiguration|
     - |g:code_overview_use_colorscheme|
@@ -135,6 +136,12 @@
 <
       Refresh your current overview with an overview of the current file.
 
+                                    *ToggleCodeOverview* *:ToggleCodeOverview*  >
+  :ToggleCodeOverview
+<
+      Toggle between the heat map display and the normal view. In the heatmap
+      display, the pixels colors depend on the complexity of the nesting.
+
 ==============================================================================
 *CodeOverViewConfiguration* Variables controlling code overview.
 
@@ -178,7 +185,7 @@
 *CodeOverviewChangelog*
 
 5. Changelog~
-
+ * 2.1  : Adding heatmap display
  * 2.0  : Adding linux Version
           Adding OSX Version
           Added documentation
