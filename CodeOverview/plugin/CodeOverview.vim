@@ -155,18 +155,30 @@ let s:colorConfiguration =
     \ ]
 
 fun! s:UpdateColorSchemeForOverview() "{{{
+	let normalColor = synIDattr(synIDtrans(hlID("Normal")), 'fg', 'gui')
+	let normalTerm = synIDattr(synIDtrans(hlID("Normal")), 'fg', 'cterm')
+
 	for [name, vimAttr, info] in s:colorConfiguration
         let guiColor = synIDattr(synIDtrans(hlID(vimAttr)), info, 'gui')
         let termColor = synIDattr(synIDtrans(hlID(vimAttr)), info, 'cterm')
 
-        if guiColor != '' && termColor != -1
-            let command = 'hi codeOverview' . name 
-                        \ . ' ctermbg=' . termColor
-                        \ . ' ctermfg=' . termColor
-                        \ . ' guifg=' . guiColor
-                        \ . ' guibg=' . guiColor
-            execute command
+        if guiColor == ''
+        	let guiColor = normalColor
         endif
+
+        let command = 'hi codeOverview' . name 
+                    \ . ' guifg=' . guiColor
+                    \ . ' guibg=' . guiColor
+
+        if !has('gui_running')
+            if termColor == -1
+                let termColor = normalTerm
+            endif
+            let command = command
+                    \ . ' ctermbg=' . termColor
+                    \ . ' ctermfg=' . termColor
+        endif
+        execute command
     endfor
 endfunction "}}}
 
@@ -305,10 +317,16 @@ fun! s:OpenCodeOverviewBuffer() "{{{
 
 	vnew
 	wincmd L
+    let s:overviewWindow = winnr()
 	vertical resize 20
 	exec 'e ' . s:tempTextFile
 	call s:PrepareCodeOverviewBuffer()
 	exec last_window . 'wincmd w'
+endfunction "}}}
+
+fun! s:LaunchAsciiView() "{{{
+    let g:codeOverviewTextMode = 1
+    call s:LaunchFriendProcess()
 endfunction "}}}
 
 " Launch the tracking window for this instance of gVIM
@@ -393,14 +411,20 @@ endfunction "}}}
 " generate an overview image of the current file,
 " write an in an update file readen by the following
 " window.
-fun! s:SnapshotFile(kind) "{{{
+fun! s:SnapshotFile(...) "{{{
+
+	if a:0 > 0
+        let kind = a:1
+    else
+    	let kind = ''
+    endif
     if line('$') > g:codeOverviewMaxLineCount
         echo 'File to big, no overview generated'
         return
     endif
 
-    if a:kind != ''
-        let s:lastQuickfixKind = a:kind
+    if kind != ''
+        let s:lastQuickfixKind = kind
     endif
 
     if bufname('%') == '' ||
@@ -490,7 +514,7 @@ fun! s:SnapshotFile(kind) "{{{
     endif
 endfunction "}}}
 
-fun! s:SnapshotAsciiFile(kind) "{{{
+fun! s:SnapshotAsciiFile(...) "{{{
     if line('$') > g:codeOverviewMaxLineCount
         echo 'File to big, no overview generated'
         return
@@ -517,13 +541,21 @@ fun! s:SnapshotAsciiFile(kind) "{{{
     let research = getreg('/')
 
     " Generate the new image file
-    let commandLine = s:overviewProcess . ' --text=8 -v -o "' . s:tempTextFile . '" '  . filename
+    let commandLine = s:overviewProcess . ' --text=8 -v -o "' . s:tempTextFile . '" "'  . filename . '"'
+    let callback = 'gvim --server ' . v:servername . ' --remote-send ":LoadTextOverview<CR>"'
+
+    if !has('win32')
+        let header = '#!/bin/sh'
+    else
+    	let header = ''
+    endif
+
+    call writefile([header, commandLine, callback], s:tempCommandFile )
 
     if has('win32')
-        call system( 'start "' . commandLine . '"' )
+        exec '!start "' . s:tempCommandFile . '"'
     else 
-        " let localSwitch = 'LC_ALL=en_US.utf8'
-    	echo system( commandLine . ' &' )
+    	call system( 'sh "' . s:tempCommandFile . '" &' )
     endif
 endfunction "}}}
 
@@ -559,12 +591,21 @@ endif
 au VimLeavePre * call s:StopFriendProcess()
 au ColorScheme * call s:UpdateColorScheme()
 
+fun! s:LoadTextOverview() "{{{
+	let last_window = winnr()
+	exec s:overviewWindow . 'wincmd w'
+	e
+	exec last_window . 'wincmd w'
+endfunction "}}}
+
 command! CodeOverviewNoAuto echo 'CodeOverview Friend Process not started!'
 command! CodeOverviewAuto echo 'CodeOverview Friend Process not started!'
 command! SnapshotFile echo 'CodeOverview Friend Process not started!'
+command! ShowAsciiCodeOverview call s:LaunchAsciiView()
 command! ShowCodeOverview call s:LaunchFriendProcess()
 command! HideCodeOverview call s:StopFriendProcess()
 command! ToggleCodeOverview call s:ToggleMode()
+command! LoadTextOverview call s:LoadTextOverview()
 
 if exists("g:code_overview_autostart")
 	call s:LaunchFriendProcess()
