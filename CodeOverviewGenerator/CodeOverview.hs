@@ -318,7 +318,11 @@ createAsciiOverview codeDef factor highlighted file =
   [ map charify imgLine | imgLine <- reducePixelMatrix factor img ]
     where img = evalState (createCodeOverview' codeDef highlighted file)
                          defaultColoringContext 
-          charify e = toEnum $ (fromEnum e) + (fromEnum 'a')
+          charify e
+            | fromEnum e <= fromEnum 'z' = toEnum $ (fromEnum e) + (fromEnum 'a')
+            | fromEnum e > fromEnum 'z' && 
+                fromEnum e <= fromEnum 'z' + fromEnum '9' = toEnum $ (fromEnum e) + (fromEnum '0')
+            | otherwise = toEnum $ (fromEnum e) + (fromEnum 'A')
 
 splitEvery :: Int -> [a] -> [[a]]
 splitEvery _ [] = []
