@@ -10,7 +10,7 @@ endif
 let g:__CODEOVERVIEW_VIM__ = 1
 
 if !has("gui_running")
-    finish
+    let g:codeOverviewTextMode = 1
 endif
 
 if v:version < 702
@@ -29,6 +29,10 @@ endif
 
 if !exists("g:codeOverviewMaxLineCount")
     let g:codeOverviewMaxLineCount = 10000
+endif
+
+if !exists("g:codeOverviewTextMode")
+    let g:codeOverviewTextMode = 0
 endif
 
 let s:preparedParameters = 0
@@ -70,6 +74,7 @@ fun! ShowCodeOverviewParams() "{{{
     echo 's:initPid ' . s:initPid
     echo 's:wakeFile ' . s:wakeFile
     echo 's:tempFile ' . s:tempFile
+    echo 's:tempTextFile ' . s:tempTextFile
     echo 's:friendProcess ' . s:friendProcess
     echo 's:overviewProcess ' . s:overviewProcess
     echo 's:colorFile ' . s:colorFile
@@ -112,50 +117,66 @@ fun! s:ConvertColorSchemeToColorConf() "{{{
     call s:BuildColorConfFromColorScheme('default.color')
 endfunction "}}}
 
+let s:colorConfiguration =
+    \ [ ["comment"     , 'comment'     , 'fg']
+    \ , ["normal"      , 'normal'      , 'fg']
+    \ , ["maj"         , 'normal'      , 'fg']
+    \ , ["empty"       , 'normal'      , 'bg']
+    \ , ["string"      , 'string'      , 'fg']
+    \ , ["keyword"     , 'keyword'     , 'fg']
+    \ , ["type"        , 'type'        , 'fg']
+    \ , ["view"        , 'cursorline'  , 'bg']
+    \ , ["typedef"     , 'Typedef'     , 'fg']
+    \ , ["include"     , 'Include'     , 'fg']
+    \
+    \ , ["conditional" , 'Conditional' , 'fg']
+    \ , ["repeat"      , 'Repeat'      , 'fg']
+    \ , ["structure"   , 'Structure'   , 'fg']
+    \ , ["statement"   , 'Statement'   , 'fg']
+    \ , ["preproc"     , 'Preproc'     , 'fg']
+    \ , ["exception"   , 'Exception'   , 'fg']
+    \ , ["operator"    , 'Operator'    , 'fg']
+    \ , ["storageClass", 'StorageClass', 'fg']
+    \
+    \ , ["float"       , 'Float'       , 'fg']
+    \ , ["number"      , 'Number'      , 'fg']
+    \ , ["bool"        , 'Boolean'     , 'fg']
+    \ , ["char"        , 'Character'   , 'fg']
+    \
+    \ , ["label"       , 'Label'       , 'fg']
+    \ , ["macro"       , 'Macro'       , 'fg']
+    \
+    \ , ["errorLine"   , 'Error'       , 'bg']
+    \ , ["warningLine" , 'Todo'        , 'bg']
+    \ , ["infoLine"    , 'IncSearch'   , 'bg']
+    \ , ["function"    , 'Function'    , 'fg']
+    \ , ["tag"         , 'Statement'   , 'fg']
+    \ , ["attribTag"   , 'PreProc'     , 'fg']
+    \ ]
+
+fun! s:UpdateColorSchemeForOverview() "{{{
+	for [name, vimAttr, info] in s:colorConfiguration
+        let guiColor = synIDattr(synIDtrans(hlID(vimAttr)), info, 'gui')
+        let termColor = synIDattr(synIDtrans(hlID(vimAttr)), info, 'cterm')
+
+        if guiColor != '' && termColor != -1
+            let command = 'hi codeOverview' . name 
+                        \ . ' ctermbg=' . termColor
+                        \ . ' ctermfg=' . termColor
+                        \ . ' guifg=' . guiColor
+                        \ . ' guibg=' . guiColor
+            execute command
+        endif
+    endfor
+endfunction "}}}
+
 " If we want to use the same color as the colorscheme,
 " we must prepare a configuration file with some infos.
 fun! s:BuildColorConfFromColorScheme(filename) "{{{
-	let conf =
-        \ [ ["comment"     , 'comment'     , 'fg#']
-        \ , ["normal"      , 'normal'      , 'fg#']
-        \ , ["maj"         , 'normal'      , 'fg#']
-        \ , ["empty"       , 'normal'      , 'bg#']
-        \ , ["string"      , 'string'      , 'fg#']
-        \ , ["keyword"     , 'keyword'     , 'fg#']
-        \ , ["type"        , 'type'        , 'fg#']
-        \ , ["view"        , 'cursorline'  , 'bg#']
-        \ , ["typedef"     , 'Typedef'     , 'fg#']
-        \ , ["include"     , 'Include'     , 'fg#']
-        \
-        \ , ["conditional" , 'Conditional' , 'fg#']
-        \ , ["repeat"      , 'Repeat'      , 'fg#']
-        \ , ["structure"   , 'Structure'   , 'fg#']
-        \ , ["statement"   , 'Statement'   , 'fg#']
-        \ , ["preproc"     , 'Preproc'     , 'fg#']
-        \ , ["exception"   , 'Exception'   , 'fg#']
-        \ , ["operator"    , 'Operator'    , 'fg#']
-        \ , ["storageClass", 'StorageClass', 'fg#']
-        \
-        \ , ["float"       , 'Float'       , 'fg#']
-        \ , ["number"      , 'Number'      , 'fg#']
-        \ , ["bool"        , 'Boolean'     , 'fg#']
-        \ , ["char"        , 'Character'   , 'fg#']
-        \
-        \ , ["label"       , 'Label'       , 'fg#']
-        \ , ["macro"       , 'Macro'       , 'fg#']
-        \
-        \ , ["errorLine"   , 'Error'       , 'bg#']
-        \ , ["warningLine" , 'Todo'        , 'bg#']
-        \ , ["infoLine"    , 'IncSearch'   , 'bg#']
-        \ , ["function"    , 'Function'    , 'fg#']
-        \ , ["tag"         , 'Statement'   , 'fg#']
-        \ , ["attribTag"   , 'PreProc'     , 'fg#']
-        \ ]
-    
     let writtenConf = []
 
-    for [progval, vimAttr, info] in conf
-        let foundColor = synIDattr(synIDtrans(hlID(vimAttr)), info)
+    for [progval, vimAttr, info] in s:colorConfiguration
+        let foundColor = synIDattr(synIDtrans(hlID(vimAttr)), info . '#')
         if foundColor != ''
             call add( writtenConf, progval . '=' . foundColor )
         endif
@@ -166,7 +187,8 @@ endfunction "}}}
 
 fun! s:UpdateColorScheme() "{{{
     call s:BuildColorConfFromColorScheme(s:colorFile)
-    call s:SnapshotFile()
+    call s:UpdateColorSchemeForOverview()
+    SnapshotFile
 endfunction "}}}
 
 fun! s:PrepareParameters() "{{{
@@ -192,6 +214,7 @@ fun! s:PrepareParameters() "{{{
     let s:initPid = string(getpid())
     let s:wakeFile = s:tempDir . 'overviewFile' . s:initPid . '.txt'
     let s:tempFile = s:tempDir . 'previewer' . s:initPid . '.png'
+    let s:tempTextFile = s:tempDir . 'previewer' . s:initPid . '.txt'
     let s:colorFile = s:tempDir . 'colorFile' . s:initPid
     let s:errFile = s:tempDir . 'errFile' . s:initPid
 
@@ -239,8 +262,10 @@ fun! s:StopFriendProcess() "{{{
         return
     endif
 
-    call writefile( ["quit"], s:wakeFile )
-    let s:friendProcessStarted = 0
+    if !g:codeOverviewTextMode
+        call writefile( ["quit"], s:wakeFile )
+        let s:friendProcessStarted = 0
+    endif
 
     command! CodeOverviewNoAuto echo 'CodeOverview Friend Process not started!'
     command! CodeOverviewAuto echo 'CodeOverview Friend Process not started!'
@@ -264,9 +289,25 @@ fun! s:LaunchFriendProcess() "{{{
         call s:BuildColorConfFromColorScheme(s:colorFile)
     endif
 
+    if exists("g:codeoverview_autoupdate")
+        call s:PutCodeOverviewHook()
+    endif
+
+    command! CodeOverviewNoAuto call s:RemoveCodeOverviewHook()
+    command! CodeOverviewAuto call s:PutCodeOverviewHook()
+
+    if g:codeOverviewTextMode
+        call s:UpdateColorSchemeForOverview()
+        command! -nargs=? SnapshotFile call s:SnapshotAsciiFile('')
+        SnapshotFile
+        return
+    else
+        command! -nargs=? SnapshotFile call s:SnapshotFile(<args>)
+    endif
+
     " Just to be sure the file is created
     call writefile( [""], s:wakeFile )
-    call s:SnapshotFile('')
+    SnapshotFile
 
     if has('win32')
         call system('cmd /s /c "start "CodeOverview Launcher" /b '
@@ -280,15 +321,7 @@ fun! s:LaunchFriendProcess() "{{{
 
     let s:friendProcessStarted = 1
 
-    if exists("g:codeoverview_autoupdate")
-        call s:PutCodeOverviewHook()
-    endif
-
-    command! CodeOverviewNoAuto call s:RemoveCodeOverviewHook()
-    command! CodeOverviewAuto call s:PutCodeOverviewHook()
-    command! SnapshotFile call s:SnapshotFile('')
-
-    call s:SnapshotFile('')
+    SnapshotFile
 
 endfunction "}}}
 
@@ -420,17 +453,54 @@ fun! s:SnapshotFile(kind) "{{{
     endif
 endfunction "}}}
 
+fun! s:SnapshotAsciiFile(kind) "{{{
+    if line('$') > g:codeOverviewMaxLineCount
+        echo 'File to big, no overview generated'
+        return
+    endif
+
+    if bufname('%') == '' || &ft == 'codeoverview' ||
+     \ index(g:code_overview_ignore_buffer_list,bufname('%')) >= 0
+    	return
+    endif
+
+    " If file has been modified, we must dump it somewhere
+    if &modified
+        let lines = getline( 0, line('$') )
+        let filename = s:tempDir . 'tempVimFile' . expand( '%:t' )
+        call writefile(lines, filename)
+        let filename = '"' . filename . '"'
+        let lines = [] " Just to let the garbage collector do it's job.
+    else
+        let filename = '"' . expand( '%:p' ) . '"'
+    endif
+
+    let lastVisibleLine = line('w$')
+    let winInfo = winsaveview()
+    let research = getreg('/')
+
+    " Generate the new image file
+    let commandLine = s:overviewProcess . ' --text=8 -v -o "' . s:tempTextFile . '" '  . filename
+
+    if has('win32')
+        call system( 'start "' . commandLine . '"' )
+    else 
+        " let localSwitch = 'LC_ALL=en_US.utf8'
+    	echo system( commandLine . ' &' )
+    endif
+endfunction "}}}
+
 fun! s:PutCodeOverviewHook() "{{{
     augroup CodeOverview
-        au BufNewFile * call s:SnapshotFile('')
-        au BufEnter * call s:SnapshotFile('')
-        au BufNew * call s:SnapshotFile('')
-        au BufWritePost * call s:SnapshotFile('')
-        au FilterWritePost * call s:SnapshotFile('')
-        au StdinReadPost * call s:SnapshotFile('')
-        au FileChangedShellPost * call s:SnapshotFile('')
-        au QuickFixCmdPost *grep* call s:SnapshotFile('search')
-        au QuickFixCmdPost *make call s:SnapshotFile('build')
+        au BufNewFile * SnapshotFile
+        au BufEnter * SnapshotFile
+        au BufNew * SnapshotFile
+        au BufWritePost * SnapshotFile
+        au FilterWritePost * SnapshotFile
+        au StdinReadPost * SnapshotFile
+        au FileChangedShellPost * SnapshotFile
+        au QuickFixCmdPost *grep* SnapshotFile search
+        au QuickFixCmdPost *make SnapshotFile build
     augroup END
 endfunction "}}}
 
