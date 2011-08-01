@@ -214,7 +214,7 @@ fun! s:PrepareParameters() "{{{
     let s:initPid = string(getpid())
     let s:wakeFile = s:tempDir . 'overviewFile' . s:initPid . '.txt'
     let s:tempFile = s:tempDir . 'previewer' . s:initPid . '.png'
-    let s:tempTextFile = s:tempDir . 'previewer' . s:initPid . '.txt'
+    let s:tempTextFile = s:tempDir . 'previewer' . s:initPid . '.textcodeoverview'
     let s:colorFile = s:tempDir . 'colorFile' . s:initPid
     let s:errFile = s:tempDir . 'errFile' . s:initPid
 
@@ -234,12 +234,15 @@ fun! s:InitialInit() "{{{
     if has('win32') || has('win64')
        let s:friendProcess = '"' . globpath( &rtp, 'plugin/WpfOverview.exe' ) . '"'
        let s:overviewProcess = '"' . globpath( &rtp, 'plugin/codeoverview.exe' ) . '"'
-    elseif has('mac')
-       let s:friendProcess = '"' . globpath( &rtp, 'plugin/CodeOverMac.app' ) . '"'
-       let s:overviewProcess = '"' . globpath( &rtp, 'plugin/codeoverview.osx' ) . '"'
-    else
-       let s:friendProcess = '"' . globpath( &rtp, 'plugin/gtkOverview.py' ) . '"'
-       let s:overviewProcess = '"' . globpath( &rtp, 'plugin/codeoverview' ) . '"'
+    elseif has('unix')
+    	let s:uname = substitute(system('uname'), '[\r\n]', '', 'g')
+    	if has('mac') || s:uname == 'Darwin'
+			let s:friendProcess = '"' . globpath( &rtp, 'plugin/CodeOverMac.app' ) . '"'
+			let s:overviewProcess = '"' . globpath( &rtp, 'plugin/codeoverview.osx' ) . '"'
+		else
+			let s:friendProcess = '"' . globpath( &rtp, 'plugin/gtkOverview.py' ) . '"'
+			let s:overviewProcess = '"' . globpath( &rtp, 'plugin/codeoverview' ) . '"'
+		endif
     endif
 
     execute 'set wildignore=' . s:tempWildIgnore
@@ -275,6 +278,39 @@ fun! s:StopFriendProcess() "{{{
     call s:RemoveTempsFile()
 endfunction "}}}
 
+" Set all the option for the code overview buffer, avoid
+" modification and put hooks to manage it.
+function! s:PrepareCodeOverviewBuffer()
+    set ft=NONE
+    mapclear <buffer>
+    setf	 codeoverview
+    setlocal buftype=nofile
+    " make sure buffer is deleted when view is closed
+    setlocal bufhidden=wipe
+    setlocal noswapfile
+    setlocal nobuflisted
+    setlocal nonumber
+    setlocal linebreak
+    setlocal foldcolumn=0
+    setlocal nocursorline
+    setlocal nocursorcolumn
+    setlocal autoread
+    
+    setlocal statusline=[CodeOverview]
+    " nnoremap <silent> <buffer> + :call <SID>TodoAddToPriority(1)<CR>
+endfunction
+
+fun! s:OpenCodeOverviewBuffer() "{{{
+	let last_window = winnr()
+
+	vnew
+	wincmd L
+	vertical resize 20
+	exec 'e ' . s:tempTextFile
+	call s:PrepareCodeOverviewBuffer()
+	exec last_window . 'wincmd w'
+endfunction "}}}
+
 " Launch the tracking window for this instance of gVIM
 " Configure some script variables used in this script.
 fun! s:LaunchFriendProcess() "{{{
@@ -300,6 +336,7 @@ fun! s:LaunchFriendProcess() "{{{
         call s:UpdateColorSchemeForOverview()
         command! -nargs=? SnapshotFile call s:SnapshotAsciiFile('')
         SnapshotFile
+        call s:OpenCodeOverviewBuffer()
         return
     else
         command! -nargs=? SnapshotFile call s:SnapshotFile(<args>)
