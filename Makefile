@@ -2,11 +2,15 @@ ifeq ($(shell uname),WindowsNT)
 SHELL:=cmd
 EXEEXT:=.exe
 HOMEDIR:=${USERPROFILE}
+VIMDIR:=${HOMEDIR}/vimfiles
 else
 HOMEDIR:=${HOME}
+VIMDIR:=${HOMEDIR}/.vim
 ifeq ($(shell uname),Darwin)
+HOMEDIR:=${HOME}
 EXEEXT:=.osx
 else
+HOMEDIR:=${HOME}
 EXEEXT:=
 endif
 endif
@@ -24,3 +28,6 @@ conf:
 clean:
 	runhaskell Setup.hs clean
 
+deploy:
+	cp CodeOverview/plugin/CodeOverview.vim ${VIMDIR}/bundle/vim-codeoverview/plugin/CodeOverview.vim
+	cp CodeOverview/syntax/codeoverview.vim ${VIMDIR}/bundle/vim-codeoverview/syntax/codeoverview.vim
