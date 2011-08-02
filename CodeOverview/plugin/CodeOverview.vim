@@ -321,7 +321,6 @@ fun! s:OpenCodeOverviewBuffer() "{{{
 
 	vnew
 	wincmd L
-    let s:overviewWindow = winnr()
 	vertical resize 20
 	exec 'e ' . s:tempTextFile
 	call s:PrepareCodeOverviewBuffer()
@@ -585,10 +584,15 @@ au VimLeavePre * call s:StopFriendProcess()
 au ColorScheme * call s:UpdateColorScheme()
 
 fun! s:LoadTextOverview() "{{{
+	if s:processingServerCommand == 1
+        return
+    endif
+
     let s:processingServerCommand = 1
 
 	let last_window = winnr()
-	exec s:overviewWindow . 'wincmd w'
+	let overviewWindow = bufwinnr(bufnr(s:tempTextFile))
+	exec overviewWindow . 'wincmd w'
 	e
 	exec last_window . 'wincmd w'
 
