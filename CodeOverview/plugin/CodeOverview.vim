@@ -35,6 +35,8 @@ if !exists("g:codeOverviewTextMode")
     let g:codeOverviewTextMode = 0
 endif
 
+" Guard to avoid redrawing when receiving server command
+let s:processingServerCommand = 0
 let s:preparedParameters = 0
 let s:friendProcessStarted = 0
 let s:lastQuickfixKind = ''
@@ -217,10 +219,12 @@ fun! s:PrepareParameters() "{{{
        let s:tempDir = expand("$TEMP") . '\'
        let s:rmCommand = "erase "
        let s:tempCommandFile = s:tempDir . 'command.cmd'
+       let s:header = ''
     else
        let s:tempDir = "/tmp/"
        let s:rmCommand = "rm -f "
        let s:tempCommandFile = s:tempDir . 'command.sh'
+       let s:header = '#!/bin/sh'
     endif
 
     let s:initPid = string(getpid())
@@ -468,12 +472,6 @@ fun! s:SnapshotFile(...) "{{{
 
     let commandLine = commandLine . " " . filename
 
-    if !has('win32')
-        let header = '#!/bin/sh'
-    else
-    	let header = ''
-    endif
-
     let wakeText = string(winInfo.topline) 
                \ . '?' . string(lastVisibleLine)
                \ . '?' . synIDattr(synIDtrans(hlID('Normal')), 'bg')
@@ -494,7 +492,7 @@ fun! s:SnapshotFile(...) "{{{
         let localSwitch = 'LC_ALL=en_US.utf8'
     endif
 
-    let commandFile = [ header
+    let commandFile = [ s:header
                     \ , s:rmCommand . '"' . s:tempFile . '"'
                     \ , localSwitch
                     \ , commandLine
@@ -521,7 +519,8 @@ fun! s:SnapshotAsciiFile(...) "{{{
     endif
 
     if bufname('%') == '' || &ft == 'codeoverview' ||
-     \ index(g:code_overview_ignore_buffer_list,bufname('%')) >= 0
+     \ index(g:code_overview_ignore_buffer_list,bufname('%')) >= 0 ||
+     \ s:processingServerCommand
     	return
     endif
 
@@ -544,13 +543,7 @@ fun! s:SnapshotAsciiFile(...) "{{{
     let commandLine = s:overviewProcess . ' --text=8 -v -o "' . s:tempTextFile . '" "'  . filename . '"'
     let callback = 'gvim --server ' . v:servername . ' --remote-send ":LoadTextOverview<CR>"'
 
-    if !has('win32')
-        let header = '#!/bin/sh'
-    else
-    	let header = ''
-    endif
-
-    call writefile([header, commandLine, callback], s:tempCommandFile )
+    call writefile([s:header, commandLine, callback], s:tempCommandFile )
 
     if has('win32')
         exec '!start "' . s:tempCommandFile . '"'
@@ -568,8 +561,8 @@ fun! s:PutCodeOverviewHook() "{{{
         au FilterWritePost * SnapshotFile
         au StdinReadPost * SnapshotFile
         au FileChangedShellPost * SnapshotFile
-        au QuickFixCmdPost *grep* SnapshotFile search
-        au QuickFixCmdPost *make SnapshotFile build
+        au QuickFixCmdPost *grep* SnapshotFile 'search'
+        au QuickFixCmdPost *make SnapshotFile 'build'
     augroup END
 endfunction "}}}
 
@@ -592,17 +585,23 @@ au VimLeavePre * call s:StopFriendProcess()
 au ColorScheme * call s:UpdateColorScheme()
 
 fun! s:LoadTextOverview() "{{{
+	echo "Processing"
+    let s:processingServerCommand = 1
+
 	let last_window = winnr()
 	exec s:overviewWindow . 'wincmd w'
 	e
 	exec last_window . 'wincmd w'
+
+    let s:processingServerCommand = 0
+	echo "Processing"
 endfunction "}}}
 
 command! CodeOverviewNoAuto echo 'CodeOverview Friend Process not started!'
 command! CodeOverviewAuto echo 'CodeOverview Friend Process not started!'
 command! SnapshotFile echo 'CodeOverview Friend Process not started!'
-command! ShowAsciiCodeOverview call s:LaunchAsciiView()
 command! ShowCodeOverview call s:LaunchFriendProcess()
+command! ShowCodeOverviewAscii call s:LaunchAsciiView()
 command! HideCodeOverview call s:StopFriendProcess()
 command! ToggleCodeOverview call s:ToggleMode()
 command! LoadTextOverview call s:LoadTextOverview()
