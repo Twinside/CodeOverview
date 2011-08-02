@@ -585,7 +585,6 @@ au VimLeavePre * call s:StopFriendProcess()
 au ColorScheme * call s:UpdateColorScheme()
 
 fun! s:LoadTextOverview() "{{{
-	echo "Processing"
     let s:processingServerCommand = 1
 
 	let last_window = winnr()
@@ -594,7 +593,6 @@ fun! s:LoadTextOverview() "{{{
 	exec last_window . 'wincmd w'
 
     let s:processingServerCommand = 0
-	echo "Processing"
 endfunction "}}}
 
 command! CodeOverviewNoAuto echo 'CodeOverview Friend Process not started!'
