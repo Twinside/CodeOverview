@@ -347,10 +347,12 @@ reducePixelMatrix n notVal lineList =
           kindsInBlock = group . sort . concat
 
           -- We want the last value with the most element in it
-          valueOfGroup = fst 
-                       . maximumBy (\(_,a) (_,b) -> compare a b)
+          valueOfGroup = maxOrEmpty
                        . filter (\(val, _) -> val /= notVal)
                        . map countSplit 
+
+          maxOrEmpty [] = notVal
+          maxOrEmpty lst = fst $ maximumBy (\(_,a) (_,b) -> compare a b) lst
 
           countSplit (x:xs) = (x, 1 + length xs)
           countSplit [] = error "Unhandled case - reducePixelMatrix.countSplit"

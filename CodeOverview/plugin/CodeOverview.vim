@@ -227,11 +227,18 @@ fun! s:PrepareParameters() "{{{
        let s:rmCommand = "erase "
        let s:tempCommandFile = s:tempDir . 'command.cmd'
        let s:header = ''
+       let s:vimServer = 'gvim'
     else
        let s:tempDir = "/tmp/"
        let s:rmCommand = "rm -f "
        let s:tempCommandFile = s:tempDir . 'command.sh'
        let s:header = '#!/bin/sh'
+       let s:vimServer = 'gvim'
+    endif
+
+    let s:uname = substitute(system('uname'), '[\r\n]', '', 'g')
+    if has('mac') || s:uname == 'Darwin'
+        let s:vimServer = 'mvim'
     endif
 
     let s:initPid = string(getpid())
@@ -557,7 +564,7 @@ fun! s:SnapshotAsciiFile(...) "{{{
 
     " Generate the new image file
     let commandLine = s:overviewProcess . ' --text=' . g:codeOverviewAsciiSize . ' -v -o "' . s:tempTextFile . '" "'  . filename . '"'
-    let callback = 'gvim --server ' . v:servername . ' --remote-send ":LoadTextOverview<CR>"'
+    let callback = s:vimServer . ' --server ' . v:servername . ' --remote-send ":LoadTextOverview<CR>"'
 
     call writefile([s:header, commandLine, callback], s:tempCommandFile )
 
