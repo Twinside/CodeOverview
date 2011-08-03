@@ -10,6 +10,7 @@
 2. Usage Example                        |CodeOverviewSampleUsage|
 3. Commands description                 |CodeOverviewCommands|
     - |:ShowCodeOverview|
+    - |:ShowCodeOverviewAscii|
     - |:HideCodeOverview|
     - |:CodeOverviewNoAuto|
     - |:CodeOverviewAuto|
@@ -22,6 +23,8 @@
     - |g:codeoverview_autoupdate|
     - |g:codeOverviewShowErrorLines|
     - |g:codeOverviewMaxLineCount|
+    - |g:codeOverviewTextMode|
+    - |g:codeOverviewAsciiSize|
 
 5. Change log                           |CodeOverviewChangelog|
 
@@ -112,6 +115,12 @@
   :ShowCodeOverview 
 <
       Start the overview panel.
+                              *ShowCodeOverviewAscii* *:ShowCodeOverviewAscii*  >
+  :ShowCodeOverviewAscii
+<
+      Open an ASCII overview buffer with a textual representation of the
+      overview of the current file. The resolution is poor, but it can work 
+      in console mode.
 
                                         *HideCodeOverview* *:HideCodeOverview*  >
   :HideCodeOverview 
@@ -180,6 +189,14 @@
       To avoid locking up GVim, you can provide a maximum
       line count to avoid refresh for very huge file.
       Default is 10000
+                                                     *g:codeOverviewTextMode*  >
+  let g:codeOverviewTextMode = 1
+<
+      Force text mode when using |:ShowCodeoverview|
+                                                    *g:codeOverviewAsciiSize*  >
+  let g:codeOverviewAsciiSize = 8
+<
+      Number of pixel in a character in ASCII mode
 
 ==============================================================================
 *CodeOverviewChangelog*
