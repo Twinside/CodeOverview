@@ -315,7 +315,7 @@ createAsciiOverview :: CodeDef [CodeEntity] -- ^ Language definition used to put
                     -> [B.ByteString]       -- ^  The lines from the file
                     -> [String]
 createAsciiOverview codeDef factor highlighted file =
-  [ map charify imgLine | imgLine <- reducePixelMatrix factor img ]
+  [ map charify imgLine | imgLine <- reducePixelMatrix factor EmptyEntity img ]
     where img = evalState (createCodeOverview' codeDef highlighted file)
                          defaultColoringContext 
           charify e
@@ -331,10 +331,10 @@ splitEvery n lst = rez : splitEvery n rest
 
 -- | Reduce an image of an integer factor n, each element
 -- in the resulting matrix will be the most present element
--- in a submatrix of size n*n.
+-- in a submatrix of size n*n. Also ignore a specific value
 -- todo : an array version
-reducePixelMatrix :: (Ord a) => Int -> [[a]] -> [[a]]
-reducePixelMatrix n lineList =
+reducePixelMatrix :: (Ord a) => Int -> a -> [[a]] -> [[a]]
+reducePixelMatrix n notVal lineList =
   [ map (valueOfGroup . kindsInBlock) $ blockList lineGroup
             | lineGroup <- splitEvery n lineList ]
     where -- Split each line in a group of chunk, and
@@ -349,6 +349,7 @@ reducePixelMatrix n lineList =
           -- We want the last value with the most element in it
           valueOfGroup = fst 
                        . maximumBy (\(_,a) (_,b) -> compare a b)
+                       . filter (\(val, _) -> val /= notVal)
                        . map countSplit 
 
           countSplit (x:xs) = (x, 1 + length xs)
