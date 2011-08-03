@@ -35,12 +35,17 @@ if !exists("g:codeOverviewTextMode")
     let g:codeOverviewTextMode = 0
 endif
 
+if !exists("g:codeOverviewAsciiSize")
+    let g:codeOverviewAsciiSize = 8
+endif
+
 " Guard to avoid redrawing when receiving server command
 let s:processingServerCommand = 0
 let s:preparedParameters = 0
 let s:friendProcessStarted = 0
 let s:lastQuickfixKind = ''
 let s:overviewmode = ''
+let s:lastProcessedAsciiFile = ''
 
 if !exists("g:code_overview_ignore_buffer_list")
 	let g:code_overview_ignore_buffer_list = []
@@ -62,8 +67,10 @@ let s:builtinIgnoreList = [
             \ "NERD_tree_3",
             \ "Source_Explorer",
             \ "[BuffExplorer]",
+            \ "[BufExplorer]",
             \ "Todo List",
-            \ "HoogleSearch"
+            \ "HoogleSearch",
+            \ "[fuf]"
             \ ]
 
 let g:code_overview_ignore_buffer_list =
@@ -294,6 +301,14 @@ fun! s:StopFriendProcess() "{{{
     call s:RemoveTempsFile()
 endfunction "}}}
 
+fun! CodeOverviewJumpToBufferLine() "{{{
+	let lineNum = line('.') * g:codeOverviewAsciiSize
+	let fileWindow = bufwinnr(bufnr(s:lastProcessedAsciiFile))
+	exec fileWindow . 'wincmd w'
+	exec lineNum
+	echo "Bong"
+endfunction "}}}
+
 " Set all the option for the code overview buffer, avoid
 " modification and put hooks to manage it.
 function! s:PrepareCodeOverviewBuffer()
@@ -311,9 +326,12 @@ function! s:PrepareCodeOverviewBuffer()
     setlocal nocursorline
     setlocal nocursorcolumn
     setlocal autoread
+    setlocal nomodifiable
+
+    nnoremap <silent> <buffer> o :call CodeOverviewJumpToBufferLine()<CR>
+    nnoremap <silent> <buffer> <LeftRelease> :call CodeOverviewJumpToBufferLine()<CR>
     
     setlocal statusline=[CodeOverview]
-    " nnoremap <silent> <buffer> + :call <SID>TodoAddToPriority(1)<CR>
 endfunction
 
 fun! s:OpenCodeOverviewBuffer() "{{{
@@ -415,7 +433,6 @@ endfunction "}}}
 " write an in an update file readen by the following
 " window.
 fun! s:SnapshotFile(...) "{{{
-
 	if a:0 > 0
         let kind = a:1
     else
@@ -539,7 +556,7 @@ fun! s:SnapshotAsciiFile(...) "{{{
     let research = getreg('/')
 
     " Generate the new image file
-    let commandLine = s:overviewProcess . ' --text=8 -v -o "' . s:tempTextFile . '" "'  . filename . '"'
+    let commandLine = s:overviewProcess . ' --text=' . g:codeOverviewAsciiSize . ' -v -o "' . s:tempTextFile . '" "'  . filename . '"'
     let callback = 'gvim --server ' . v:servername . ' --remote-send ":LoadTextOverview<CR>"'
 
     call writefile([s:header, commandLine, callback], s:tempCommandFile )
@@ -549,6 +566,7 @@ fun! s:SnapshotAsciiFile(...) "{{{
     else 
     	call system( 'sh "' . s:tempCommandFile . '" &' )
     endif
+    let s:lastProcessedAsciiFile = bufname('%')
 endfunction "}}}
 
 fun! s:PutCodeOverviewHook() "{{{
