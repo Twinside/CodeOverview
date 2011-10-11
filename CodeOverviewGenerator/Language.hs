@@ -178,6 +178,7 @@ data CodeEntity =
     | FunctionEntity
     | TagEntity
     | AttribTagEntity
+    | ConstantEntity
 
     | ErrorEntity
     | WarningEntity
@@ -221,7 +222,7 @@ identWithPrime :: Char -> Int -> Bool
 identWithPrime c 0 = isAlpha c
 identWithPrime c _ = isAlphaNum c || c == '\''
 
--- | Parse an integer of the form \'[0-9]+\'
+-- | Parse an integer of the form \'[0-9]+\'
 intParser :: Parser [CodeEntity]
 intParser = Parser $ \toParse ->
     if not (B.null toParse) && isDigit (B.head toParse)
@@ -229,7 +230,7 @@ intParser = Parser $ \toParse ->
       else return NoParse
         where intParse (n, uncons -> Just (c', rest))
                 | isDigit c' = intParse (n + 1, rest)
-                | otherwise = Result (replicate n NumberEntity, rest)
+                | otherwise = Result (replicate n NumberEntity, rest)
               intParse (n, uncons -> Nothing) =
                 Result (replicate n NumberEntity, B.empty)
               intParse _ = error "Compiler pleaser - intParser"

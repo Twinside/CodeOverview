@@ -17,6 +17,7 @@ endif
 
 build:
 	ghc --make -O2 -Wall -o ${HOMEDIR}/dotfiles/vimfiles/bundle/vim-codeoverview/plugin/codeoverview${EXEEXT} codeOverviewMain.hs
+	cp CodeOverview/plugin/CodeOverview.vim ${HOMEDIR}/dotfiles/vimfiles/bundle/vim-codeoverview/plugin/CodeOverview.vim
 
 run:
 	LC_ALL=en_US.utf8

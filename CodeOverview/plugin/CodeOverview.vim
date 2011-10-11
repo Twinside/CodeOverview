@@ -9,15 +9,20 @@ if exists("g:__CODEOVERVIEW_VIM__")
 endif
 let g:__CODEOVERVIEW_VIM__ = 1
 
+" We try to force text mode
 if !has("gui_running")
-    let g:codeOverviewTextMode = 1
+	" Cannot work if clientserver is not compiled.
+	if !has("clientserver")
+		finish
+    else
+        let g:codeOverviewTextMode = 1
+    endif
 endif
 
 if v:version < 702
     echo 'Your vim version is too old for the CodeOverview plugin, please update it'
     finish
 endif
-
 
 if !exists('g:codeOverviewShowErrorLines')
     let g:codeOverviewShowErrorLines = 1
@@ -37,6 +42,19 @@ endif
 
 if !exists("g:codeOverviewAsciiSize")
     let g:codeOverviewAsciiSize = 8
+endif
+
+if !exists("g:overviewVimServer")
+    if !has('gui_running')
+        let g:overviewVimServer = 'vim'
+    else
+        let g:overviewVimServer = 'gvim'
+    endif
+
+    let s:uname = substitute(system('uname'), '[\r\n]', '', 'g')
+    if has('mac') || s:uname == 'Darwin'
+        let g:overviewVimServer = 'mvim'
+    endif
 endif
 
 " Guard to avoid redrawing when receiving server command
@@ -146,6 +164,7 @@ let s:colorConfiguration =
     \ , ["exception"   , 'Exception'   , 'fg']
     \ , ["operator"    , 'Operator'    , 'fg']
     \ , ["storageClass", 'StorageClass', 'fg']
+    \ , ["constant"    , 'Constant'    , 'fg']
     \
     \ , ["float"       , 'Float'       , 'fg']
     \ , ["number"      , 'Number'      , 'fg']
@@ -227,18 +246,11 @@ fun! s:PrepareParameters() "{{{
        let s:rmCommand = "erase "
        let s:tempCommandFile = s:tempDir . 'command.cmd'
        let s:header = ''
-       let s:vimServer = 'gvim'
     else
        let s:tempDir = "/tmp/"
        let s:rmCommand = "rm -f "
        let s:tempCommandFile = s:tempDir . 'command.sh'
        let s:header = '#!/bin/sh'
-       let s:vimServer = 'gvim'
-    endif
-
-    let s:uname = substitute(system('uname'), '[\r\n]', '', 'g')
-    if has('mac') || s:uname == 'Darwin'
-        let s:vimServer = 'mvim'
     endif
 
     let s:initPid = string(getpid())
@@ -313,7 +325,6 @@ fun! CodeOverviewJumpToBufferLine() "{{{
 	let fileWindow = bufwinnr(bufnr(s:lastProcessedAsciiFile))
 	exec fileWindow . 'wincmd w'
 	exec lineNum
-	echo "Bong"
 endfunction "}}}
 
 " Set all the option for the code overview buffer, avoid
@@ -564,7 +575,7 @@ fun! s:SnapshotAsciiFile(...) "{{{
 
     " Generate the new image file
     let commandLine = s:overviewProcess . ' --text=' . g:codeOverviewAsciiSize . ' -v -o "' . s:tempTextFile . '" "'  . filename . '"'
-    let callback = s:vimServer . ' --server ' . v:servername . ' --remote-send ":LoadTextOverview<CR>"'
+    let callback = g:overviewVimServer . ' --server ' . v:servername . ' --remote-send ":LoadTextOverview<CR>"'
 
     call writefile([s:header, commandLine, callback], s:tempCommandFile )
 

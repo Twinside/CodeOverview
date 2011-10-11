@@ -26,6 +26,7 @@ data    ColorDef = ColorDef
     , viewColor      :: ViewColor
     , keywordColor   :: ViewColor
     , typeColor      :: ViewColor
+    , constantColor  :: ViewColor
 
     , labelColor       :: ViewColor
     , conditionalColor :: ViewColor
@@ -82,6 +83,7 @@ defaultColorDef :: ColorDef
 defaultColorDef = ColorDef
     { commentColor   = (100,155,100,255)
     , normalColor    = (128,128,128,255)
+    , constantColor  = (128,128,128,255)
     , stringColor    = (100,100,155,255)
     , highlightColor = (200,200,100,255)
     , majColor       = (  0,  0,  0,255)
@@ -128,6 +130,7 @@ makeEntityColorLookupTable def = array (toEnum 0, last [toEnum 0 ..]) $
     , (ViewEntity, viewColor def)
     , (KeywordEntity, keywordColor def)
     , (TypeEntity, typeColor def)
+    , (ConstantEntity, constantColor def)
     , (LabelEntity, labelColor def)
     , (ConditionalEntity, conditionalColor def)
     , (RepeatEntity, repeatColor def)
@@ -214,6 +217,8 @@ updateColorDef def ("keyword",val) =
     maybe def (\c -> def { keywordColor = c }) $ parseHtmlColor val
 updateColorDef def ("type",val) =
     maybe def (\c -> def { typeColor = c }) $ parseHtmlColor val
+updateColorDef def ("constant", val) =
+    maybe def (\c -> def { constantColor = c }) $ parseHtmlColor val
 
 updateColorDef def ("label", val) =
     maybe def (\c -> def { labelColor = c }) $ parseHtmlColor val
