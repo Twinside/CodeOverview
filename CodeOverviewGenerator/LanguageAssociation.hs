@@ -21,6 +21,7 @@ import CodeOverviewGenerator.Language.Shell
 import CodeOverviewGenerator.Language.Ruby
 import CodeOverviewGenerator.Language.Html
 import CodeOverviewGenerator.Language.Vim
+import CodeOverviewGenerator.Language.Perl
 
 
 parserForFile :: FilePath -> CodeDef [CodeEntity]
@@ -52,6 +53,7 @@ formatParserAssociation =
     , ("ruby", rubyCodeDef)
     , ("html", htmlCodeDef)
     , ("xml", htmlCodeDef)
+    , ("perl", perlCodeDef)
     ]
 
 sourceExtensionAssoc :: [(String, (String, CodeDef [CodeEntity]))]
@@ -80,7 +82,8 @@ sourceExtensionAssoc =
     , (".sh"    , ("Shell Script" , shellCodeDef))
     , ("Makefile", ("Shell Script", shellCodeDef))
     , (".rb"    , ("Ruby"         , rubyCodeDef))
-    , (".vim"    , ("VimL"         , vimCodeDef))
+    , (".vim"   , ("VimL"         , vimCodeDef))
+    , (".pl"    , ("Perl"         , perlCodeDef))
     ]
 
 tagExtensionAssoc :: [(String, (String, CodeDef [CodeEntity]))]
