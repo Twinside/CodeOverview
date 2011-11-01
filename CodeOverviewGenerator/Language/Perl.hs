@@ -1,3 +1,4 @@
+-- | Define some perl coloration, only basic keywords are highlighted
 module CodeOverviewGenerator.Language.Perl( perlCodeDef ) where
 
 import Control.Applicative
@@ -6,6 +7,7 @@ import CodeOverviewGenerator.Language
 import CodeOverviewGenerator.Color
 {-import qualified CodeOverviewGenerator.ByteString as B-}
 
+-- | Perl tokens
 perlConditional, perlRepeat :: [String]
 perlConditional = ["if", "elsif", "unless", "given", "when", "default", "else"]
 perlRepeat = ["while", "for", "each", "do", "until", "continue"]
@@ -36,6 +38,7 @@ perlRepeat = ["while", "for", "each", "do", "until", "continue"]
 
 {-syn match perlStatementMisc		"\<\%(warn\|formline\|reset\|scalar\|prototype\|lock\|tied\=\|untie\)\>"-}
 
+-- | Perl langage definition
 perlCodeDef :: CodeDef [CodeEntity]
 perlCodeDef = def
     where def = CodeDef

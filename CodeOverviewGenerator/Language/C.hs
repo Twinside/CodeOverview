@@ -1,4 +1,5 @@
 {-# LANGUAGE ViewPatterns #-}
+-- | This module highlight the C language.
 module CodeOverviewGenerator.Language.C( cCodeDef ) where
 
 import Control.Applicative
@@ -7,6 +8,7 @@ import CodeOverviewGenerator.Language
 import CodeOverviewGenerator.Color
 import qualified CodeOverviewGenerator.ByteString as B
 
+-- | Some highlighted keywords.
 cStatement, cLabel, cConditional, cRepeat, cType, cStructure,
     cStorageClass :: [String]
 cStatement = ["goto", "break", "return", "continue", "asm"]
@@ -86,6 +88,8 @@ preprocHighlighter = preprocParser >>= resAnalyzer
               Nothing -> return $ displayPreproc payload
               Just parser -> parser payload
 
+-- | C Language code definition to be used with the 'createCodeOverview'
+-- function.
 cCodeDef :: CodeDef [CodeEntity]
 cCodeDef = def
     where def = CodeDef

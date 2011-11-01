@@ -1,3 +1,5 @@
+-- | Module containing the tag based document markup definition.
+-- Handle HTML/XML & xHTML
 module CodeOverviewGenerator.Language.Html ( htmlCodeDef ) where
 
 import Control.Applicative
@@ -5,6 +7,7 @@ import CodeOverviewGenerator.Language
 import CodeOverviewGenerator.Color
 import qualified CodeOverviewGenerator.ByteString as B
 
+-- | Code definition for HTML/XML/xHTML family of language.
 htmlCodeDef :: CodeDef [CodeEntity]
 htmlCodeDef = emptyCodeDef
             { multiLineCommBeg = strComment "<!--"

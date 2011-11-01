@@ -1,8 +1,10 @@
+-- | Module for an OCaml parser
 module CodeOverviewGenerator.Language.Ocaml ( ocamlCodeDef ) where
 
 import CodeOverviewGenerator.Language
 import CodeOverviewGenerator.Color
 
+-- | Ocaml keywords/token.
 ocamlKeyword, ocamlTypes, ocamlOperator :: [String]
 ocamlKeyword = [ "object","struct","sig","end", "include", "function", "do"
                , "value", "in", "inherit", "initializer", "land", "lazy"
@@ -18,6 +20,7 @@ ocamlTypes =
 
 ocamlOperator = ["asr", "lor", "lsl", "lsr", "lxor", "mod", "not"]
 
+-- | OCaml language definition.
 ocamlCodeDef :: CodeDef [CodeEntity]
 ocamlCodeDef = def
     where def = CodeDef

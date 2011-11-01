@@ -13,6 +13,8 @@ import CodeOverviewGenerator.LanguageAssociation
 import qualified CodeOverviewGenerator.ByteString as B
 import Png
 
+import CodeOverviewGenerator.DiffOverlay
+
 data OverOption = OverOption
       { overOut :: String -> String
       , overTextOut :: String -> String
@@ -32,6 +34,7 @@ data OverOption = OverOption
       , overRecursiveDiscovery :: Bool
       , overHeatMap :: Bool
       , overAsciiVersion :: Maybe Int
+      , overDiffOverlays :: Maybe String
       }
 
 defaultOption :: OverOption
@@ -54,6 +57,7 @@ defaultOption = OverOption
     , overFileFormat = Nothing
     , overHeatMap = False
     , overAsciiVersion = Nothing
+    , overDiffOverlays = Nothing
     }
 
 pngIzeExtension :: FilePath -> FilePath
@@ -97,6 +101,8 @@ commonOption =
     , Option []    ["errfile"]  (ReqArg (\f o -> o {overErrFile = Just f}) "FILENAME") "Error lines"
     , Option []    ["text"]   (ReqArg (\f o -> o {overAsciiVersion = Just $ read f }) "BlockSize") 
                                     "Output as text file with reduction BlockSize"
+    , Option "d"   ["diff"]     (ReqArg (\f o -> o { overDiffOverlays = Just f}) "FILENAME")
+                                    "Put a diff overlay on top of the generated image."
     ]
 
 loadArgs :: [String] -> IO OverOption 
@@ -132,6 +138,11 @@ loadErrorFile opts = case overErrFile opts  of
         return [(msg, read $ tail lineNum) 
                         | (msg, lineNum) <- map (break (':' ==)) $ lines file ]
 
+loadDiffOverlay :: OverOption -> IO CodeOverlays
+loadDiffOverlay opts = case overDiffOverlays  opts of
+    Nothing -> return []
+    Just f -> loadOverlayFile f
+
 savePngImage :: OverOption -> FilePath -> [[ViewColor]] -> IO ()
 savePngImage option path pixels
     | overTransparent option = savePng24BitAlpha path pixels
@@ -146,13 +157,14 @@ performTransformation option path = do
     codeDef <- parserOfFile option path
     colorDef <- loadConf option
     errorLines <- loadErrorFile option
+    diffOverlay <- loadDiffOverlay option
     when (overVerbose option)
          (putStrLn $ "highlight List : " ++ show (overHighlighted option))
     let converter =
             if overHeatMap option
                then createHeatMap codeDef colorDef errorLines
-               else fst . createCodeOverview codeDef colorDef errorLines
-                            (overHighlighted option)
+               else fst . createCodeOverview codeDef colorDef errorLines 
+                                            diffOverlay (overHighlighted option)
         pixelList = converter $ B.lines file
     if overTop option >= 0
        then return $ addOverMask colorDef (0, overTop option - 1)

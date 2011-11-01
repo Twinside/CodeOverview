@@ -1,4 +1,9 @@
 {-# LANGUAGE ViewPatterns #-}
+-- | Main image generating module, define all the types
+-- used during the parsing, the 'CodeDef' which define
+-- a language, a 'ColorDef' which define a color theme.
+--
+-- to generate an image of a C
 module CodeOverviewGenerator.CodeOverview (
                    -- * Types
                      CodeDef

@@ -1,3 +1,4 @@
+-- | Module defining C++ code def.
 module CodeOverviewGenerator.Language.Cpp (cppCodeDef) where
 
 import CodeOverviewGenerator.Language.C
@@ -5,6 +6,7 @@ import CodeOverviewGenerator.Language
 import CodeOverviewGenerator.Color
 import qualified Data.Map as Map
 
+-- | C++ keywords definition
 cppStatement, cppAccess, cppType, cppExceptions, 
     cppOperator, cppStructure :: [String]
 cppStatement = ["new", "delete", "this", "friend", "using"]
@@ -17,6 +19,8 @@ cppOperator = ["operator", "typeid", "and", "bitor", "or", "xor", "compl"
 {-cppBoolean = ["true", "false"]-}
 cppStructure = ["class", "typename", "template", "namespace"]
 
+
+-- | C++ Code def
 cppCodeDef :: CodeDef [CodeEntity]
 cppCodeDef = def
     where cppIdents = prepareKeywords

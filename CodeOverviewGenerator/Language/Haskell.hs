@@ -1,3 +1,4 @@
+-- | Module defining haskell code generation
 module CodeOverviewGenerator.Language.Haskell ( haskellCodeDef ) where
 
 import Control.Applicative
@@ -46,7 +47,7 @@ importParser = cleanDef <$>
                                             
 
               
-                
+-- | Haskell code definition.
 haskellCodeDef :: CodeDef [CodeEntity]
 haskellCodeDef = def
     where def = CodeDef

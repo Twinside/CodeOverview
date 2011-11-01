@@ -1,9 +1,11 @@
+-- | Module defining the VimL language
 module CodeOverviewGenerator.Language.Vim ( vimCodeDef) where
 
 import CodeOverviewGenerator.Language
 import CodeOverviewGenerator.Color
 {-import qualified CodeOverviewGenerator.ByteString as B-}
 
+-- | VimL tokens.
 vimConditional, vimRepeat, vimBuiltin, vimStatement :: [String]
 vimConditional = ["if", "else", "elseif", "endif", "finish"]
 
@@ -62,6 +64,8 @@ vimBuiltin = [
  "islocked", "keys", "libcallnr", "lispindent", "log10",
  "mapcheck", "matcharg", "matchlist"]
 
+
+-- | VimL language definition.
 vimCodeDef :: CodeDef [CodeEntity]
 vimCodeDef = def
     where def = CodeDef

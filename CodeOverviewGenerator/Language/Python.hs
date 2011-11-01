@@ -1,9 +1,11 @@
+-- | Define python langage
 module CodeOverviewGenerator.Language.Python ( pythonCodeDef ) where
 
 import CodeOverviewGenerator.Language
 import CodeOverviewGenerator.Language.Shell
 import CodeOverviewGenerator.Color
 
+-- | Python tokens
 pythonStatement, pythonConditional, pythonRepeat, pythonOperator,
     pythonException, pythonInclude :: [String]
 pythonStatement	= ["False", "None", "True", "as", "assert", "break"
@@ -17,6 +19,7 @@ pythonOperator	  = ["and", "in", "is", "not", "or"]
 pythonException	  = ["except", "finally", "raise", "try"]
 pythonInclude	  = ["from", "import"]
 
+-- | Python language definition.
 pythonCodeDef :: CodeDef [CodeEntity]
 pythonCodeDef = def
     where def = shellCodeDef

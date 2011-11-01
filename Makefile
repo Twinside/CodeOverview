@@ -29,6 +29,9 @@ conf:
 clean:
 	runhaskell Setup.hs clean
 
+doc:
+	runhaskell Setup.hs haddock --executables
+
 deploy:
 	cp CodeOverview/plugin/CodeOverview.vim ${VIMDIR}/bundle/vim-codeoverview/plugin/CodeOverview.vim
 	cp CodeOverview/syntax/codeoverview.vim ${VIMDIR}/bundle/vim-codeoverview/syntax/codeoverview.vim

@@ -4,6 +4,7 @@ import CodeOverviewGenerator.Language.C
 import CodeOverviewGenerator.Language
 import CodeOverviewGenerator.Color
 
+-- | Java keywords
 javaStatement, javaAccess, javaType, javaExceptions, 
     javaStructure, javaTypedef, javaRepeat, javaBranch,
     javaBoolean, javaConditional  :: [String]
@@ -21,6 +22,9 @@ javaStructure = ["class", "enum", "extends", "implements", "interface"]
 
 -- storageClass
 {-static synchronized transient volatile final strictfp serializable-}
+
+
+-- | Java code def
 javaCodeDef ::  CodeDef [CodeEntity]
 javaCodeDef = cCodeDef {
             specialIdentifier = prepareKeywords
