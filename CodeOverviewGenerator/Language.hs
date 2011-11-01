@@ -148,6 +148,8 @@ data    CodeDef a = CodeDef
     , heatTokens :: [Parser (Count, DepthIncrease)]
     }
 
+-- | Enumeration of pseudo-classes used for syntax coloration
+-- The kind of element is suffixed by Entity.
 data CodeEntity =
       CommentEntity
     | StringEntity
@@ -180,9 +182,14 @@ data CodeEntity =
     | AttribTagEntity
     | ConstantEntity
 
-    | ErrorEntity
-    | WarningEntity
-    | InfoEntity
+    | ErrorEntity       -- ^ Used to display lines with compilation error.
+    | WarningEntity     -- ^ Used to display lines with warning during compilation.
+    | InfoEntity        -- ^ Used to display lines with file search for example.
+
+    | DiffDelEntity        -- ^ Entity for diff deletion.
+    | DiffAddEntity        -- ^ Entity for diff addition.
+    | DiffDelThenAddEntity -- ^ Entity for diff when deleting then adding.
+    | DiffAddThenDelEntity -- ^ Entity for diff when adding then deleting.
     deriving (Eq, Ord, Enum)
 
 instance Ix CodeEntity where

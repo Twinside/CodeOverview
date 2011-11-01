@@ -4,6 +4,7 @@ module CodeOverviewGenerator.CodeOverview (
                      CodeDef
                    , ColorDef
                    , ViewColor
+                   , CodeOverlays
 
                    -- * Colorsets
                    , defaultColorDef
@@ -189,12 +190,22 @@ addOverMask colorDef (x,y) (width, height) pixels = prelude ++ map lineColoratio
               , (a * av) `quot` 256
               )
 
+addOverlay :: [(ViewColor, Int, Int)] -> [[ViewColor]]
+           -> [[ViewColor]]
+addOverlay lst = snd . mapAccumL applyOverlay lst . zip [1 ..]
+  where applyOverlay overlays@((color, beg, size):rest) fromList@(line, txt)
+            | beg + size < line = applyOverlay rest fromList
+            | line < beg = (overlays, txt)
+            | otherwise = (overlays, map (\a -> alphaBlend a color) txt)
+        applyOverlay [] (_, txt) = ([], txt)
+
 -- | Add error layer on top of a generated image.
 -- Work best if all lines are of the same length
 addOverLines :: ColorDef -> [(String, Int)] -> [[ViewColor]] -> [[ViewColor]]
 addOverLines _ [] = id
 addOverLines colordef errorList = snd . mapAccumL lineMarker sortedErrors . zip [1..]
   where sortedErrors = sortBy (\(_,line) (_,line') -> compare line line') errorList
+
         lineMarker [] (_, e) = ([], emptyConcat ++ e)
         lineMarker fullList@((hiKind, lineNumber):xs) element@(currLine, e)
           | lineNumber < currLine = lineMarker xs element
@@ -221,11 +232,13 @@ addOverLines colordef errorList = snd . mapAccumL lineMarker sortedErrors . zip 
         highlightLine _ line = errorConcat ++ map (\a -> alphaBlend a errorColor) line
 
 
-createHeatMap :: CodeDef a
-              -> ColorDef
-              -> [(String,Int)]
-              -> [B.ByteString]
-              -> [[ViewColor]]
+-- | Create an image picturing the nesting/complexity of code by picturing
+-- an heatmap.
+createHeatMap :: CodeDef a      -- ^ Definition of a lanuage
+              -> ColorDef       -- ^ Current color theme
+              -> [(String,Int)] -- ^ Error lines to be highlighted
+              -> [B.ByteString] -- ^ Text lines from the file
+              -> [[ViewColor]]  -- ^ The resulting "image"
 createHeatMap codeDef colorDef errorLines fileLines =
         let (parseRez, _) = evalState (foldM parse (id, 0) fileLines) defaultColoringContext
         in addOverLines colorDef errorLines 
@@ -258,19 +271,26 @@ createHeatMap codeDef colorDef errorLines fileLines =
                     let newColor = replicate count (colorOfDepth depth)
                     in parseLine (line . (newColor ++), depth + increase) rest
 
+-- | Type used for line overlays, used to highlight diff zone
+-- or other things.
+type CodeOverlays = [(CodeEntity, Int, Int)]
+type ErrorLines = [(String, Int)]
+
 -- | Main function to create an overview of a parsed file
 createCodeOverview :: CodeDef [CodeEntity] -- ^ Language definition used to put some highlight/color
-                   -> ColorDef       -- ^ Colors to be used during the process.
-                   -> [(String,Int)] -- ^ Error line definition, to put an highlight on some lines.
-                   -> [String]       -- ^ Identifier to be 'highlighted', to highlight a search
+                   -> ColorDef             -- ^ Colors to be used during the process.
+                   -> ErrorLines           -- ^ Error line definition, to put an highlight on some lines.
+                   -> CodeOverlays         -- ^ Code overlay to be displayed on top of image
+                   -> [String]             -- ^ Identifier to be 'highlighted', to highlight a search
                    -> [B.ByteString]       -- ^  The lines from the file
                    -> ([[ViewColor]], ColoringContext)
-createCodeOverview codeDef colorDef errorLines highlighted file =
-  ( addOverLines colorDef errorLines colorImage, ctxt)
+createCodeOverview codeDef colorDef errorLines overlays highlighted file =
+  ( addOverlay colorOverlays $ addOverLines colorDef errorLines colorImage, ctxt)
     where (img, ctxt) = runState (createCodeOverview' codeDef highlighted file)
                          defaultColoringContext 
           colorImage = [ map (colorAssoc !) imgLine | imgLine <- normalizePixelList EmptyEntity img ]
           colorAssoc = makeEntityColorLookupTable colorDef
+          colorOverlays = [ (colorAssoc ! c, o, s) | (c, o, s) <- overlays ]
 
 
 createCodeOverview' :: CodeDef [CodeEntity] -- ^ Language definition used to put some highlight/color

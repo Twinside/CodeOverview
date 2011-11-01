@@ -105,7 +105,7 @@ createIncludeGraph codeMapper verbose colorDef
                 fileLines = B.lines file
                 lineCount = length fileLines
                 (img, context) = createCodeOverview parser
-                                        colorDef [] [] fileLines
+                                        colorDef [] [] [] fileLines
                 foundFiles = linkedDocuments context
                 outFileName = "file" ++ show fileId ++ ".png"
                 maxLineSize = if null img then 30 else maximum $ map length img
