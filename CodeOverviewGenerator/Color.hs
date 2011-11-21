@@ -52,6 +52,11 @@ data    ColorDef = ColorDef
     , warningLineColor :: ViewColor
     , infoLineColor :: ViewColor
 
+
+    , diffDelColor :: ViewColor
+    , diffAddColor :: ViewColor
+    , diffDelThenAddColor :: ViewColor
+    , diffAddThenDelColor :: ViewColor
     , heatRamp :: Array Int ViewColor
     }
     deriving Show
@@ -116,6 +121,11 @@ defaultColorDef = ColorDef
     , warningLineColor = (  0, 255, 255, 200)
     , infoLineColor    = (  0,   0, 255, 200)
 
+    , diffDelColor = (255, 221, 221, 200)
+    , diffAddColor = (221, 255, 221, 200)
+    , diffDelThenAddColor = (221, 221, 255, 200)
+    , diffAddThenDelColor = (255, 255, 221, 200)
+
     , heatRamp = listArray (0, length smallHeatRamp - 1) smallHeatRamp 
     }
 
@@ -153,6 +163,10 @@ makeEntityColorLookupTable def = array (toEnum 0, last [toEnum 0 ..]) $
     , (ErrorEntity, errorLineColor def)
     , (WarningEntity, warningLineColor def)
     , (InfoEntity, infoLineColor def)
+    , (DiffDelEntity, diffDelColor def)
+    , (DiffAddEntity, diffAddColor def)
+    , (DiffDelThenAddEntity, diffDelThenAddColor def)
+    , (DiffAddThenDelEntity, diffAddThenDelColor def)
     ]
 
 
