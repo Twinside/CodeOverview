@@ -34,5 +34,5 @@ parseOverlayFile txt = catMaybes . map parseLine $ lines txt
         parseLine _ = Nothing
 
         parseOffsets kind str = Just $ (kind, offset, size)
-          where (offset, size) = (read *** read) $ break (== ':') str
+          where (offset, size) = (read *** read . tail) $ break (== ':') str
 
